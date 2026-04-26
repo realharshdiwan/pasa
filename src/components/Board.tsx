@@ -184,6 +184,7 @@ export default function Board() {
               height={squareSize}
               fill={isLight ? LIGHT_SQUARE : DARK_SQUARE}
               onClick={() => handleSquareClick(position)}
+              onTap={() => handleSquareClick(position)}
             />
             {isSelected ? (
               <Rect
