@@ -67,7 +67,7 @@ export default function Settings({ currentMode, onModeToggle, onClose }: Setting
   }, [onModeToggle, onClose])
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4">
+    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-sm rounded-xl border border-stone-500/50 bg-stone-900/95 p-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-stone-100">Settings</h2>

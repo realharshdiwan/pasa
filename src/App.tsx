@@ -150,14 +150,14 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   }, [currentMode])
 
   return (
-    <div className={`game-ui-fade-in absolute inset-0 z-20 ${shaking ? 'screen-shake' : ''}`}>
+    <div className={`game-ui-fade-in pointer-events-none absolute inset-0 z-20 ${shaking ? 'screen-shake' : ''}`}>
       {/* Raja capture flash overlay */}
       {showRajaFlash ? (
         <div className="raja-flash pointer-events-none absolute inset-0 z-50 bg-red-600/60" />
       ) : null}
 
       {/* Top controls bar */}
-      <div className="absolute top-4 left-4 z-30 flex gap-2">
+      <div className="pointer-events-auto absolute top-4 left-4 z-30 flex gap-2">
         <button
           type="button"
           onClick={onBack}
@@ -194,7 +194,7 @@ function LocalGame({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Right panel: Die + Move History */}
-      <div className="absolute right-4 top-1/2 z-30 w-72 -translate-y-1/2">
+      <div className="pointer-events-auto absolute right-4 top-1/2 z-30 w-72 -translate-y-1/2">
         <DieRoll />
         <div className="mt-4">
           <MoveHistory />
