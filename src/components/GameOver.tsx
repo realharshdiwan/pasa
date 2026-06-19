@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { PLAYER_COLORS } from '../constants/colors'
-import type { Player, PlayerColor } from '../engine/types'
+import type { Move, Player, PlayerColor } from '../engine/types'
 import { capitalizeColor } from '../utils/format'
+import { playGameOverSound } from '../utils/sound'
+import ReplayViewer from './ReplayViewer'
 
 const PLAYER_ORDER = Object.keys(PLAYER_COLORS) as PlayerColor[]
 
@@ -34,10 +37,26 @@ function findPlayerByPlacement(
 
 interface GameOverProps {
   players: Record<PlayerColor, Player>
+  moveHistory: Move[]
   onPlayAgain: () => void
 }
 
-export default function GameOver({ players, onPlayAgain }: GameOverProps) {
+export default function GameOver({ players, moveHistory, onPlayAgain }: GameOverProps) {
+  const [showReplay, setShowReplay] = useState(false)
+
+  useEffect(() => {
+    playGameOverSound()
+  }, [])
+
+  if (showReplay) {
+    return (
+      <ReplayViewer
+        moves={moveHistory}
+        onClose={() => setShowReplay(false)}
+      />
+    )
+  }
+
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-md rounded-xl border border-stone-500/50 bg-stone-900/95 p-5 shadow-2xl">
@@ -86,6 +105,16 @@ export default function GameOver({ players, onPlayAgain }: GameOverProps) {
         >
           Play Again
         </button>
+
+        {moveHistory.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowReplay(true)}
+            className="mt-2 w-full rounded-md border border-stone-500/50 bg-stone-700 px-4 py-2 font-medium text-stone-100 transition hover:bg-stone-600"
+          >
+            View Replay
+          </button>
+        ) : null}
       </div>
     </div>
   )

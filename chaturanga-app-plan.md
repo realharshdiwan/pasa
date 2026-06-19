@@ -75,7 +75,7 @@ Placement-based rating. Casual mode always available alongside Ranked.
 - Alliance mode toggle (free-for-all / teams)
 - Shared constants: `src/constants/colors.ts`, `src/utils/format.ts`
 
-### Phase 3 — AI Opponents (Current)
+### Phase 3 — AI Opponents ✅ COMPLETE
 *Goal: Play solo against 3 bots.*
 
 - Bot logic for 3 AI players filling empty seats
@@ -86,7 +86,7 @@ Placement-based rating. Casual mode always available alongside Ranked.
 
 **Note:** Chaturaji AI is not standard minimax. 4-player, points-based, die-constrained, with inherited armies. Each bot plays selfishly. Consult Claude before designing the evaluation function.
 
-### Phase 4 — Polish + Onboarding
+### Phase 4 — Polish + Onboarding ✅ COMPLETE
 *Goal: Something you'd proudly share with strangers.*
 
 - Smooth piece movement animations (Konva tweens)
@@ -108,12 +108,12 @@ Placement-based rating. Casual mode always available alongside Ranked.
 ### Phase 5 — Online Multiplayer
 *Goal: Play with friends remotely via shared link.*
 
-- Room system — create game, share URL, friends join
-- Real-time sync via Supabase Realtime
-- Async option — take your turn, others notified
-- Simple auth — email or Google login via Supabase
-- Alliance Break mechanic UI (both players prompted when enemies eliminated)
-- Random team pairing option in Alliance Mode
+- ✅ Room system — create game, share code, friends join
+- ✅ Real-time sync via Supabase Realtime
+- ✅ Simple auth — email + Google login via Supabase
+- ⏳ Async option — take your turn, others notified (stretch)
+- ⏳ Alliance Break mechanic UI (both players prompted when enemies eliminated)
+- ⏳ Random team pairing option in Alliance Mode
 
 ### Phase 6 — Rating System
 *Goal: Long-term competitive incentive.*
@@ -142,24 +142,24 @@ Placement-based rating. Casual mode always available alongside Ranked.
 | Alliance mode toggle | 2 | ✅ Done |
 | Game over overlay | 2 | ✅ Done |
 | Shared constants + utils | 2 | ✅ Done |
-| AI opponents (3 bots) | 3 | 🔄 Current |
-| 3 difficulty levels | 3 | 🔄 Current |
-| Move hints | 3 | 🔄 Current |
-| Conquered piece colour change | 3 | 🔄 Current |
-| Movement animations | 4 | — |
-| Kill animation | 4 | — |
-| Sound design | 4 | — |
-| Interactive tutorial | 4 | — |
-| Historical lore screen | 4 | — |
-| Move history panel (live) | 4 | — |
-| Game replay viewer (post-game) | 4 | — |
-| Auto die roll toggle | 4 | — |
-| Timer options (lobby setting) | 4 | — |
-| Controller badge on pieces | 4 | — |
-| Cosmetic progression | 4 | — |
-| Board/piece/die themes | 4 | — |
-| Sanskrit/English toggle | 4 | — |
-| Online multiplayer (friends) | 5 | — |
+| AI opponents (3 bots) | 3 | ✅ Done |
+| 3 difficulty levels | 3 | ✅ Done |
+| Move hints | 3 | ✅ Done |
+| Conquered piece colour change | 3 | ✅ Done |
+| Movement animations | 4 | ✅ Done |
+| Kill animation | 4 | ✅ Done |
+| Sound design | 4 | ✅ Done |
+| Interactive tutorial | 4 | ✅ Done |
+| Historical lore screen | 4 | ✅ Done |
+| Move history panel (live) | 4 | ✅ Done |
+| Game replay viewer (post-game) | 4 | ✅ Done |
+| Auto die roll toggle | 4 | ✅ Done |
+| Timer options (lobby setting) | 4 | ✅ Done |
+| Controller badge on pieces | 4 | ✅ Done |
+| Cosmetic progression | 4 | ✅ Done |
+| Board/piece/die themes | 4 | ✅ Done |
+| Sanskrit/English toggle | 4 | ✅ Done |
+| Online multiplayer (friends) | 5 | 🚧 In Progress |
 | Alliance Break mechanic | 5 | — |
 | Random team pairing | 5 | — |
 | Rating system + rank tiers | 6 | — |
@@ -182,21 +182,26 @@ pasa/
 │   │   ├── die.ts
 │   │   ├── scoring.ts
 │   │   ├── elimination.ts
+│   │   ├── ai.ts
 │   │   └── engine.test.ts
 │   ├── components/
-│   │   ├── Board.tsx
-│   │   ├── Piece.tsx
-│   │   ├── DieRoll.tsx
-│   │   ├── GameOver.tsx
-│   │   ├── Scoreboard.tsx
-│   │   └── TurnIndicator.tsx
+│   │   ├── Board.tsx          ← Konva.js board + SVG piece icons + animation
+│   │   ├── DieRoll.tsx        ← die face display, rolling animation, scoreboard
+│   │   ├── GameOver.tsx       ← end-game overlay with placements
+│   │   ├── Lore.tsx           ← historical Chaturaji context
+│   │   ├── MoveHistory.tsx    ← live move history (last 6 moves)
+│   │   ├── Settings.tsx       ← consolidated settings (difficulty, timer, sound, etc.)
+│   │   ├── Tutorial.tsx       ← interactive learn-to-play guide
+│   │   └── TurnIndicator.tsx  ← current turn colored banner
 │   ├── constants/
 │   │   └── colors.ts
 │   ├── store/
-│   │   └── gameStore.ts
+│   │   └── gameStore.ts       ← Zustand store (game state, timer, settings)
 │   ├── utils/
-│   │   └── format.ts
-│   └── App.tsx
+│   │   ├── cosmetics.ts        ← theme definitions, progression, localStorage persistence
+│   │   ├── format.ts          ← capitalizeColor, positionToNotation
+│   │   └── sound.ts           ← Web Audio sound effects
+│   └── App.tsx                ← root component, bot orchestration, timer tick
 ```
 
 ---

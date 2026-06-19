@@ -1,33 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import { Circle, Group, Layer, Rect, Stage, Text } from 'react-konva'
+import { Circle, Group, Layer, Line, Rect, RegularPolygon, Stage } from 'react-konva'
+import Konva from 'konva'
 import { PLAYER_COLORS } from '../constants/colors'
 import * as movesEngine from '../engine/moves'
 import type { CandidateMove } from '../engine/moves'
 import type { Piece, PieceType, PlayerColor, Position } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
+import { BOARD_THEME_COLORS } from '../utils/cosmetics'
+import { playCaptureSound, playMoveSound, playRajaCaptureSound } from '../utils/sound'
 
 const BOARD_DIMENSION = 8
-const LIGHT_SQUARE = '#F0D9B5'
-const DARK_SQUARE = '#B58863'
 const SELECTED_HIGHLIGHT = 'rgba(255, 255, 0, 0.4)'
 const LEGAL_MOVE_HIGHLIGHT = 'rgba(0, 200, 0, 0.35)'
 const HINT_FROM_HIGHLIGHT = 'rgba(0, 100, 255, 0.4)'
 const HINT_TO_HIGHLIGHT = 'rgba(0, 100, 255, 0.25)'
+const ANIMATION_DURATION = 0.2
 
 const PIECE_ROTATIONS: Record<PlayerColor, number> = {
   red: 0,
   blue: 90,
   yellow: 180,
   green: -90,
-}
-
-const PIECE_LABELS: Record<PieceType, string> = {
-  raja: 'K',
-  ratha: 'R',
-  gaja: 'G',
-  ashva: 'A',
-  padati: 'P',
 }
 
 function toDisplayRow(row: number): number {
@@ -50,11 +44,18 @@ export default function Board() {
   const selectedSquare = useGameStore((state) => state.selectedSquare)
   const legalMovesForSelected = useGameStore((state) => state.legalMovesForSelected)
   const hintMove = useGameStore((state) => state.hintMove)
+  const lastMove = useGameStore((state) => state.lastMove)
+  const boardTheme = useGameStore((state) => state.boardTheme)
+  const pieceTheme = useGameStore((state) => state.pieceTheme)
   const selectSquare = useGameStore((state) => state.selectSquare)
   const applyMove = useGameStore((state) => state.applyMove)
 
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const stageRef = useRef<Konva.Stage | null>(null)
   const [boardSize, setBoardSize] = useState<number>(640)
+  const prevMoveHistoryLenRef = useRef<number>(0)
+  const animatingRef = useRef(false)
+  const moveHistoryLen = useGameStore((state) => state.gameState.moveHistory.length)
 
   useEffect(() => {
     const container = containerRef.current
@@ -82,6 +83,47 @@ export default function Board() {
     }
   }, [])
 
+  useLayoutEffect(() => {
+    if (moveHistoryLen === 0) {
+      prevMoveHistoryLenRef.current = 0
+      return
+    }
+
+    if (moveHistoryLen <= prevMoveHistoryLenRef.current) {
+      return
+    }
+
+    prevMoveHistoryLenRef.current = moveHistoryLen
+
+    if (!lastMove || !stageRef.current) {
+      return
+    }
+
+    const sqSize = boardSize / BOARD_DIMENSION
+    const fromX = lastMove.from.col * sqSize + sqSize / 2
+    const fromY = toDisplayRow(lastMove.from.row) * sqSize + sqSize / 2
+    const toX = lastMove.to.col * sqSize + sqSize / 2
+    const toY = toDisplayRow(lastMove.to.row) * sqSize + sqSize / 2
+
+    const pieceNode = stageRef.current.findOne(`#${lastMove.piece.id}`)
+    if (!pieceNode) {
+      return
+    }
+
+    animatingRef.current = true
+    pieceNode.position({ x: fromX, y: fromY })
+
+    pieceNode.to({
+      x: toX,
+      y: toY,
+      duration: ANIMATION_DURATION,
+      easing: Konva.Easings.EaseOut,
+      onFinish: () => {
+        animatingRef.current = false
+      },
+    })
+  }, [moveHistoryLen, lastMove, boardSize])
+
   const squareSize = boardSize / BOARD_DIMENSION
   const pieceRadius = squareSize * 0.34
 
@@ -95,8 +137,19 @@ export default function Board() {
 
   const handleSquareClick = useCallback(
     (position: Position): void => {
+      if (animatingRef.current) {
+        return
+      }
+
       const legalMove = legalMoveMap.get(positionKey(position))
       if (legalMove) {
+        if (legalMove.captured?.type === 'raja') {
+          playRajaCaptureSound()
+        } else if (legalMove.captured) {
+          playCaptureSound()
+        } else {
+          playMoveSound()
+        }
         applyMove(legalMove)
         return
       }
@@ -147,23 +200,18 @@ export default function Board() {
             centerY={toDisplayRow(row) * squareSize + squareSize / 2}
             radius={pieceRadius}
             opacity={shouldDimPiece ? 0.35 : 1}
+            theme={pieceTheme}
           />,
         )
       }
     }
 
     return nodes
-  }, [
-    board,
-    currentRoll,
-    currentTurn,
-    gameMode,
-    pieceRadius,
-    squareSize,
-  ])
+  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, pieceTheme])
 
   const squareNodes = useMemo(() => {
     const nodes: ReactElement[] = []
+    const themeColors = BOARD_THEME_COLORS[boardTheme]
 
     for (let row = 0; row < BOARD_DIMENSION; row += 1) {
       for (let col = 0; col < BOARD_DIMENSION; col += 1) {
@@ -182,7 +230,7 @@ export default function Board() {
               y={y}
               width={squareSize}
               height={squareSize}
-              fill={isLight ? LIGHT_SQUARE : DARK_SQUARE}
+              fill={isLight ? themeColors.light : themeColors.dark}
               onClick={() => handleSquareClick(position)}
               onTap={() => handleSquareClick(position)}
             />
@@ -232,7 +280,7 @@ export default function Board() {
     }
 
     return nodes
-  }, [handleSquareClick, hintMove, legalMoveMap, selectedSquare, squareSize])
+  }, [handleSquareClick, hintMove, legalMoveMap, selectedSquare, squareSize, boardTheme])
 
   return (
     <div
@@ -240,6 +288,7 @@ export default function Board() {
       className="flex h-full w-full items-center justify-center"
     >
       <Stage
+        ref={stageRef}
         width={boardSize}
         height={boardSize}
       >
@@ -258,13 +307,15 @@ interface PieceNodeProps {
   centerY: number
   radius: number
   opacity: number
+  theme: 'classic' | 'geometric' | 'minimal'
 }
 
-function PieceNode({ piece, centerX, centerY, radius, opacity }: PieceNodeProps) {
-  const labelSize = Math.max(12, radius * 0.85)
+function PieceNode({ piece, centerX, centerY, radius, opacity, theme }: PieceNodeProps) {
+  const s = radius * 0.7
 
   return (
     <Group
+      id={piece.id}
       x={centerX}
       y={centerY}
       rotation={PIECE_ROTATIONS[piece.color]}
@@ -287,16 +338,168 @@ function PieceNode({ piece, centerX, centerY, radius, opacity }: PieceNodeProps)
           strokeWidth={Math.max(1, radius * 0.05)}
         />
       ) : null}
-      <Text
-        text={PIECE_LABELS[piece.type]}
-        x={-radius}
-        y={-labelSize * 0.62}
-        width={radius * 2}
-        align="center"
-        fontSize={labelSize}
-        fontStyle="bold"
-        fill="#FFFFFF"
-      />
+      <PieceIcon type={piece.type} size={s} color={piece.controlledBy} theme={theme} />
     </Group>
   )
+}
+
+function PieceIcon({ type, size, color, theme }: { type: PieceType; size: number; color: PlayerColor; theme: 'classic' | 'geometric' | 'minimal' }) {
+  const white = theme === 'minimal' ? 'rgba(255,255,255,0.7)' : '#FFFFFF'
+  const strokeW = theme === 'geometric' ? size * 0.08 : 0
+
+  switch (type) {
+    case 'raja':
+      if (theme === 'geometric') {
+        return (
+          <Group>
+            <RegularPolygon sides={5} radius={size * 0.55} stroke={white} strokeWidth={strokeW} fill="transparent" />
+            <Circle y={-size * 0.55} radius={size * 0.18} stroke={white} strokeWidth={strokeW * 0.6} fill="transparent" />
+          </Group>
+        )
+      }
+      if (theme === 'minimal') {
+        return (
+          <Group>
+            <RegularPolygon sides={4} radius={size * 0.4} fill={white} rotation={45} />
+          </Group>
+        )
+      }
+      return (
+        <Group>
+          <RegularPolygon sides={5} radius={size * 0.55} fill={white} />
+          <Circle y={-size * 0.55} radius={size * 0.18} fill={white} />
+        </Group>
+      )
+    case 'ratha':
+      if (theme === 'geometric') {
+        return (
+          <Group>
+            <Rect x={-size * 0.28} y={-size * 0.5} width={size * 0.56} height={size * 0.65} stroke={white} strokeWidth={strokeW} fill="transparent" />
+            <Rect x={-size * 0.38} y={-size * 0.6} width={size * 0.12} height={size * 0.2} stroke={white} strokeWidth={strokeW * 0.6} fill="transparent" />
+            <Rect x={-size * 0.06} y={-size * 0.6} width={size * 0.12} height={size * 0.2} stroke={white} strokeWidth={strokeW * 0.6} fill="transparent" />
+            <Rect x={size * 0.26} y={-size * 0.6} width={size * 0.12} height={size * 0.2} stroke={white} strokeWidth={strokeW * 0.6} fill="transparent" />
+          </Group>
+        )
+      }
+      if (theme === 'minimal') {
+        return (
+          <Group>
+            <Rect x={-size * 0.25} y={-size * 0.4} width={size * 0.5} height={size * 0.55} fill={white} />
+          </Group>
+        )
+      }
+      return (
+        <Group>
+          <Rect x={-size * 0.28} y={-size * 0.5} width={size * 0.56} height={size * 0.65} fill={white} />
+          <Rect x={-size * 0.38} y={-size * 0.6} width={size * 0.12} height={size * 0.2} fill={white} />
+          <Rect x={-size * 0.06} y={-size * 0.6} width={size * 0.12} height={size * 0.2} fill={white} />
+          <Rect x={size * 0.26} y={-size * 0.6} width={size * 0.12} height={size * 0.2} fill={white} />
+        </Group>
+      )
+    case 'gaja':
+      if (theme === 'geometric') {
+        return (
+          <Group>
+            <Circle y={-size * 0.1} radius={size * 0.35} stroke={white} strokeWidth={strokeW} fill="transparent" />
+            <Line points={[0, size * 0.05, 0, size * 0.45]} stroke={white} strokeWidth={size * 0.1} lineCap="round" />
+          </Group>
+        )
+      }
+      if (theme === 'minimal') {
+        return (
+          <Group>
+            <Circle y={-size * 0.1} radius={size * 0.3} fill={white} />
+          </Group>
+        )
+      }
+      return (
+        <Group>
+          <Circle y={-size * 0.1} radius={size * 0.35} fill={white} />
+          <Line points={[0, size * 0.05, 0, size * 0.45]} stroke={white} strokeWidth={size * 0.14} lineCap="round" />
+          <Line points={[0, size * 0.45, -size * 0.12, size * 0.35]} stroke={white} strokeWidth={size * 0.1} lineCap="round" />
+        </Group>
+      )
+    case 'ashva':
+      if (theme === 'geometric') {
+        return (
+          <Group>
+            <Line
+              points={[
+                -size * 0.1, size * 0.4,
+                -size * 0.05, -size * 0.05,
+                size * 0.05, -size * 0.35,
+                size * 0.2, -size * 0.45,
+                size * 0.25, -size * 0.3,
+                size * 0.1, -size * 0.15,
+                size * 0.15, size * 0.1,
+                size * 0.05, size * 0.4,
+              ]}
+              closed
+              stroke={white}
+              strokeWidth={strokeW}
+              fill="transparent"
+            />
+            <Circle x={size * 0.12} y={-size * 0.32} radius={size * 0.06} fill={PLAYER_COLORS[color]} />
+          </Group>
+        )
+      }
+      if (theme === 'minimal') {
+        return (
+          <Group>
+            <Line
+              points={[
+                0, size * 0.4,
+                0, -size * 0.1,
+                size * 0.15, -size * 0.35,
+                size * 0.1, -size * 0.15,
+                0, size * 0.1,
+              ]}
+              closed
+              fill={white}
+            />
+          </Group>
+        )
+      }
+      return (
+        <Group>
+          <Line
+            points={[
+              -size * 0.1, size * 0.4,
+              -size * 0.05, -size * 0.05,
+              size * 0.05, -size * 0.35,
+              size * 0.2, -size * 0.45,
+              size * 0.25, -size * 0.3,
+              size * 0.1, -size * 0.15,
+              size * 0.15, size * 0.1,
+              size * 0.05, size * 0.4,
+            ]}
+            closed
+            fill={white}
+          />
+          <Circle x={size * 0.12} y={-size * 0.32} radius={size * 0.06} fill={PLAYER_COLORS[color]} />
+        </Group>
+      )
+    case 'padati':
+      if (theme === 'geometric') {
+        return (
+          <Group>
+            <Circle y={-size * 0.15} radius={size * 0.22} stroke={white} strokeWidth={strokeW} fill="transparent" />
+            <Rect x={-size * 0.18} y={size * 0.05} width={size * 0.36} height={size * 0.35} stroke={white} strokeWidth={strokeW * 0.6} fill="transparent" />
+          </Group>
+        )
+      }
+      if (theme === 'minimal') {
+        return (
+          <Group>
+            <Circle y={-size * 0.1} radius={size * 0.2} fill={white} />
+          </Group>
+        )
+      }
+      return (
+        <Group>
+          <Circle y={-size * 0.15} radius={size * 0.22} fill={white} />
+          <Rect x={-size * 0.18} y={size * 0.05} width={size * 0.36} height={size * 0.35} fill={white} />
+        </Group>
+      )
+  }
 }

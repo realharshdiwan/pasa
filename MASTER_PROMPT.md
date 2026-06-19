@@ -16,7 +16,7 @@ This is a passion project built solo using AI tools. Code quality and correctnes
 
 ## Tech Stack — Non-Negotiable
 
-- **Framework:** React 18 + Vite + TypeScript (strict mode)
+- **Framework:** React 19 + Vite + TypeScript (strict mode)
 - **Board rendering:** Konva.js via react-konva
 - **State management:** Zustand
 - **Styling:** Tailwind CSS (for UI around the board only — menus, scoreboard, turn indicator)
@@ -48,16 +48,26 @@ pasa/
 │   │   ├── die.ts            ← die roll and piece type mapping
 │   │   ├── scoring.ts        ← point tracking and placement
 │   │   ├── elimination.ts    ← Raja capture and army transfer
-│   │   └── engine.test.ts    ← unit tests for all of the above
+│   │   ├── ai.ts             ← bot AI (easy/medium/hard) + hint system
+│   │   └── engine.test.ts    ← unit tests (22 tests passing)
 │   ├── components/
-│   │   ├── Board.tsx
-│   │   ├── Piece.tsx
-│   │   ├── DieRoll.tsx
-│   │   ├── Scoreboard.tsx
-│   │   └── TurnIndicator.tsx
+│   │   ├── Board.tsx         ← Konva.js 8×8 board + SVG piece icons + animation
+│   │   ├── DieRoll.tsx       ← die face display, rolling animation, scoreboard, timer
+│   │   ├── GameOver.tsx      ← end-game overlay with placements
+│   │   ├── Lore.tsx          ← historical Chaturaji context
+│   │   ├── MoveHistory.tsx   ← live move history panel (last 6 moves)
+│   │   ├── Settings.tsx      ← consolidated settings (difficulty, timer, sound, etc.)
+│   │   ├── Tutorial.tsx      ← interactive learn-to-play guide (12 steps)
+│   │   └── TurnIndicator.tsx ← current turn colored banner
+│   ├── constants/
+│   │   └── colors.ts         ← player color hex values
 │   ├── store/
-│   │   └── gameStore.ts
-│   └── App.tsx
+│   │   └── gameStore.ts      ← Zustand store (game state, timer, settings, bot logic)
+│   ├── utils/
+│   │   ├── cosmetics.ts       ← theme definitions, progression, localStorage persistence
+│   │   ├── format.ts          ← capitalizeColor, positionToNotation
+│   │   └── sound.ts           ← Web Audio sound effects (move, capture, raja, die, game over)
+│   └── App.tsx               ← root component, bot orchestration, timer tick, Raja flash
 ```
 
 ### TypeScript strict mode
@@ -314,4 +324,50 @@ Setup is complete. Confirm and we move to Phase 1 — Engine.
 
 *Always read this file before writing any code.*
 *For game logic: also read RULES.md.*
-*Current phase: Setup → Phase 1 (Engine)*
+*Current phase: Phase 5 — Online Multiplayer (in progress)*
+
+### Phase 5 Progress — 🚧 IN PROGRESS
+- ✅ Supabase JS client installed + configured (`src/lib/supabase.ts`)
+- ✅ Database schema migration (`supabase/migrations/001_initial_schema.sql`)
+  - Tables: rooms, room_players, moves, game_states
+  - RLS policies for all tables
+  - Realtime enabled on moves table
+- ✅ Auth system (`src/contexts/AuthContext.tsx`, `src/contexts/useAuth.ts`)
+  - Email/password signup + login
+  - Google OAuth login
+  - Graceful fallback when Supabase not configured
+- ✅ Multiplayer store (`src/store/multiplayerStore.ts`)
+  - Create/join/leave room
+  - Real-time subscription via Supabase channels
+  - Online move/roll/pass with game state sync
+  - Room player management
+- ✅ UI components:
+  - `AuthScreen.tsx` — Login/signup with email + Google
+  - `Lobby.tsx` — Room creation, code entry, waiting room with ready system
+  - `OnlineGame.tsx` — Online game wrapper
+  - `DieRollOnline.tsx` — Online die roll component
+- ✅ Game mode selector (local vs online) in `App.tsx`
+- ✅ Graceful Supabase-not-configured fallback
+- ⏳ End-to-end testing with Supabase project
+- ⏳ Alliance Break mechanic (deferred to later)
+- ⏳ Bot support in online mode (human-vs-human only for now)
+
+### Phase 4 Progress — ✅ COMPLETE
+- ✅ Movement animations (Konva tweens)
+- ✅ Kill animation (Raja capture flash + shake)
+- ✅ Sound design (Web Audio: move, capture, raja, die, game over)
+- ✅ Interactive tutorial (12-step Learn to Play)
+- ✅ Historical lore screen
+- ✅ Move history panel (live, last 6 moves)
+- ✅ Auto die roll toggle (0.8s delay, default off)
+- ✅ Timer options (per-move 30s / total 6min, configurable)
+- ✅ Settings panel consolidation (difficulty, mode, timer, sound, Sanskrit toggle)
+- ✅ Sanskrit/English piece name toggle
+- ✅ SVG piece icons (distinct chess-like shapes)
+- ✅ Die face visual display with dot patterns
+- ✅ Bot die roll visibility (roll shown before move)
+- ✅ Game replay viewer (post-game)
+- ✅ Cosmetic progression (play → earn → unlock, localStorage persistence)
+- ✅ Board/piece/die themes (5 board + 3 piece + 4 die themes)
+- ✅ Theme selector UI in Settings with unlock indicators
+- ✅ 22 tests passing, build clean, ESLint clean

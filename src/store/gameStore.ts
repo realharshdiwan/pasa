@@ -14,6 +14,12 @@ import type {
   PlayerColor,
   Position,
 } from '../engine/types'
+import type { BoardTheme, DieTheme, PieceTheme } from '../utils/cosmetics'
+
+export type TimerMode = 'none' | 'per-move' | 'total'
+
+const DEFAULT_PER_MOVE_SECONDS = 30
+const DEFAULT_TOTAL_SECONDS = 360
 
 function arePositionsEqual(left: Position, right: Position): boolean {
   return left.row === right.row && left.col === right.col
@@ -54,14 +60,34 @@ function createMoveRecord(
 
 export interface GameStoreState {
   gameState: GameState
+  lastMove: Move | null
   selectedSquare: Position | null
   legalMovesForSelected: CandidateMove[]
   hintMove: CandidateMove | null
   botDifficulty: Difficulty
   humanPlayer: PlayerColor
+  autoDieRoll: boolean
+  sanskritNames: boolean
+  timerMode: TimerMode
+  perMoveSeconds: number
+  totalSeconds: number
+  timeLeft: Record<PlayerColor, number>
+  moveTimeLeft: number
+  boardTheme: BoardTheme
+  pieceTheme: PieceTheme
+  dieTheme: DieTheme
   initGame: (gameMode?: GameMode) => void
   setBotDifficulty: (difficulty: Difficulty) => void
   setHintMove: (move: CandidateMove | null) => void
+  setAutoDieRoll: (enabled: boolean) => void
+  setSanskritNames: (enabled: boolean) => void
+  setTimerMode: (mode: TimerMode) => void
+  setPerMoveSeconds: (seconds: number) => void
+  setTotalSeconds: (seconds: number) => void
+  setBoardTheme: (theme: BoardTheme) => void
+  setPieceTheme: (theme: PieceTheme) => void
+  setDieTheme: (theme: DieTheme) => void
+  tickTimers: () => void
   selectSquare: (position: Position) => void
   rollDie: () => void
   passTurn: () => void
@@ -72,18 +98,38 @@ export interface GameStoreState {
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
   gameState: boardEngine.createInitialGameState(),
+  lastMove: null,
   selectedSquare: null,
   legalMovesForSelected: [],
   hintMove: null,
   botDifficulty: 'medium',
   humanPlayer: 'red',
+  autoDieRoll: false,
+  sanskritNames: true,
+  timerMode: 'none',
+  perMoveSeconds: DEFAULT_PER_MOVE_SECONDS,
+  totalSeconds: DEFAULT_TOTAL_SECONDS,
+  timeLeft: { red: DEFAULT_TOTAL_SECONDS, blue: DEFAULT_TOTAL_SECONDS, yellow: DEFAULT_TOTAL_SECONDS, green: DEFAULT_TOTAL_SECONDS },
+  moveTimeLeft: DEFAULT_PER_MOVE_SECONDS,
+  boardTheme: 'classic',
+  pieceTheme: 'classic',
+  dieTheme: 'classic',
 
   initGame: (gameMode: GameMode = 'freeforall'): void => {
+    const state = get()
     set({
       gameState: boardEngine.createInitialGameState(gameMode),
+      lastMove: null,
       selectedSquare: null,
       legalMovesForSelected: [],
       hintMove: null,
+      timeLeft: {
+        red: state.totalSeconds,
+        blue: state.totalSeconds,
+        yellow: state.totalSeconds,
+        green: state.totalSeconds,
+      },
+      moveTimeLeft: state.perMoveSeconds,
     })
   },
 
@@ -93,6 +139,98 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   setHintMove: (move: CandidateMove | null): void => {
     set({ hintMove: move })
+  },
+
+  setAutoDieRoll: (enabled: boolean): void => {
+    set({ autoDieRoll: enabled })
+  },
+
+  setSanskritNames: (enabled: boolean): void => {
+    set({ sanskritNames: enabled })
+  },
+
+  setTimerMode: (mode: TimerMode): void => {
+    set({ timerMode: mode })
+  },
+
+  setPerMoveSeconds: (seconds: number): void => {
+    set({ perMoveSeconds: seconds })
+  },
+
+  setTotalSeconds: (seconds: number): void => {
+    set({ totalSeconds: seconds })
+  },
+
+  setBoardTheme: (theme: BoardTheme): void => {
+    set({ boardTheme: theme })
+  },
+
+  setPieceTheme: (theme: PieceTheme): void => {
+    set({ pieceTheme: theme })
+  },
+
+  setDieTheme: (theme: DieTheme): void => {
+    set({ dieTheme: theme })
+  },
+
+  tickTimers: (): void => {
+    const { gameState, timerMode, perMoveSeconds } = get()
+    if (gameState.phase !== 'playing' || timerMode === 'none') {
+      return
+    }
+
+    const currentTurn = gameState.currentTurn
+
+    if (timerMode === 'per-move') {
+      const newMoveTime = get().moveTimeLeft - 1
+      if (newMoveTime <= 0) {
+        get().passTurn()
+        set({ moveTimeLeft: perMoveSeconds })
+        return
+      }
+      set({ moveTimeLeft: newMoveTime })
+      return
+    }
+
+    if (timerMode === 'total') {
+      const newTimeLeft = { ...get().timeLeft }
+      newTimeLeft[currentTurn] -= 1
+
+      if (newTimeLeft[currentTurn] <= 0) {
+        const eliminated: PlayerColor[] = []
+        for (const color of Object.keys(newTimeLeft) as PlayerColor[]) {
+          if (newTimeLeft[color] <= 0 && !gameState.players[color].isEliminated) {
+            eliminated.push(color)
+          }
+        }
+
+        let nextGameState = gameState
+        for (const color of eliminated) {
+          nextGameState = {
+            ...nextGameState,
+            players: {
+              ...nextGameState.players,
+              [color]: { ...nextGameState.players[color], isEliminated: true },
+            },
+            turnOrder: nextGameState.turnOrder.filter((c: PlayerColor) => c !== color),
+          }
+        }
+
+        if (nextGameState.turnOrder.length <= 1 && nextGameState.phase === 'playing') {
+          nextGameState = { ...nextGameState, phase: 'finished' as const }
+        }
+
+        set({
+          gameState: nextGameState,
+          timeLeft: newTimeLeft,
+          selectedSquare: null,
+          legalMovesForSelected: [],
+        })
+        return
+      }
+
+      set({ timeLeft: newTimeLeft })
+    }
   },
 
   selectSquare: (position: Position): void => {
@@ -209,6 +347,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       },
       selectedSquare: null,
       legalMovesForSelected: [],
+      moveTimeLeft: get().perMoveSeconds,
     })
   },
 
@@ -288,9 +427,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     set({
       gameState: nextGameState,
+      lastMove: createMoveRecord(gameState, move, gameState.currentRoll),
       selectedSquare: null,
       legalMovesForSelected: [],
       hintMove: null,
+      moveTimeLeft: get().perMoveSeconds,
     })
   },
 
