@@ -5,6 +5,7 @@ import DieRoll from './components/DieRoll'
 import GameOver from './components/GameOver'
 import Lobby from './components/Lobby'
 import Lore from './components/Lore'
+import MainMenu from './components/MainMenu'
 import MoveHistory from './components/MoveHistory'
 import OnlineGame from './components/OnlineGame'
 import Settings from './components/Settings'
@@ -18,47 +19,6 @@ import { useMultiplayerStore } from './store/multiplayerStore'
 import { recordGame } from './utils/cosmetics'
 
 type AppView = 'menu' | 'local' | 'online-auth' | 'online-lobby' | 'online-game'
-
-function GameModeSelector({ onSelect }: { onSelect: (view: AppView) => void }) {
-  const { configured } = useAuth()
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-900 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-stone-500/50 bg-stone-900/95 p-6 shadow-2xl">
-        <h1 className="text-center text-2xl font-bold text-stone-100">Pasa</h1>
-        <p className="mt-1 text-center text-xs text-stone-500">Chaturaji — the ancient game of four kings</p>
-
-        <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={() => onSelect('local')}
-            className="w-full rounded-md bg-amber-600 px-4 py-3 font-semibold text-stone-950 transition hover:bg-amber-500"
-          >
-            Local Game
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelect('online-auth')}
-            className={`w-full rounded-md border px-4 py-3 font-medium transition ${
-              configured
-                ? 'border-stone-500/50 bg-stone-700 text-stone-100 hover:bg-stone-600'
-                : 'cursor-not-allowed border-stone-600 bg-stone-800 text-stone-500'
-            }`}
-            disabled={!configured}
-          >
-            Online Multiplayer {!configured ? '(requires setup)' : ''}
-          </button>
-        </div>
-
-        <p className="mt-6 text-center text-xs text-stone-500">
-          Local: play on one device against AI bots
-          <br />
-          Online: play with friends via shared room code
-        </p>
-      </div>
-    </div>
-  )
-}
 
 function LocalGame({ onBack }: { onBack: () => void }) {
   const [currentMode, setCurrentMode] = useState<GameMode>('freeforall')
@@ -322,7 +282,10 @@ export default function App() {
   return (
     <AuthProvider>
       {view === 'menu' ? (
-        <GameModeSelector onSelect={setView} />
+        <MainMenu
+          onSelectLocal={() => setView('local')}
+          onSelectOnline={() => setView('online-auth')}
+        />
       ) : view === 'local' ? (
         <LocalGame onBack={() => setView('menu')} />
       ) : (

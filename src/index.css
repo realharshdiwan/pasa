@@ -27,3 +27,49 @@
 .screen-shake {
   animation: screen-shake 0.4s ease-out;
 }
+
+.menu-bg {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(120, 53, 15, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(120, 53, 15, 0.05) 0%, transparent 50%),
+    #1c1917;
+}
+
+.menu-title {
+  animation: menu-fade-in 0.8s ease-out both;
+}
+
+.menu-subtitle {
+  animation: menu-fade-in 0.8s ease-out 0.15s both;
+}
+
+.menu-card {
+  animation: menu-slide-up 0.5s ease-out both;
+}
+
+.menu-card:nth-child(1) {
+  animation-delay: 0.25s;
+}
+
+.menu-card:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.menu-die {
+  animation: menu-fade-in 0.8s ease-out 0.05s both, menu-float 4s ease-in-out infinite;
+}
+
+@keyframes menu-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes menu-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes menu-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
