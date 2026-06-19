@@ -3,9 +3,10 @@ import type { ReactElement } from 'react'
 import { Circle, Group, Layer, Line, Rect, RegularPolygon, Stage } from 'react-konva'
 import Konva from 'konva'
 import { PLAYER_COLORS } from '../constants/colors'
+import { createInitialBoard } from '../engine/board'
 import * as movesEngine from '../engine/moves'
 import type { CandidateMove } from '../engine/moves'
-import type { Piece, PieceType, PlayerColor, Position } from '../engine/types'
+import type { Board as BoardType, Piece, PieceType, PlayerColor, Position } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { BOARD_THEME_COLORS } from '../utils/cosmetics'
 import { playCaptureSound, playMoveSound, playRajaCaptureSound } from '../utils/sound'
@@ -36,8 +37,12 @@ function arePositionsEqual(left: Position | null, right: Position): boolean {
   return left !== null && left.row === right.row && left.col === right.col
 }
 
-export default function Board() {
-  const board = useGameStore((state) => state.gameState.board)
+interface BoardProps {
+  decorative?: boolean
+}
+
+export default function Board({ decorative = false }: BoardProps) {
+  const storeBoard = useGameStore((state) => state.gameState.board)
   const currentRoll = useGameStore((state) => state.gameState.currentRoll)
   const currentTurn = useGameStore((state) => state.gameState.currentTurn)
   const gameMode = useGameStore((state) => state.gameState.gameMode)
@@ -49,6 +54,9 @@ export default function Board() {
   const pieceTheme = useGameStore((state) => state.pieceTheme)
   const selectSquare = useGameStore((state) => state.selectSquare)
   const applyMove = useGameStore((state) => state.applyMove)
+
+  const decorativeBoard = useMemo(() => (decorative ? createInitialBoard() : null), [decorative])
+  const board: BoardType = decorative && decorativeBoard ? decorativeBoard : storeBoard
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
@@ -218,10 +226,10 @@ export default function Board() {
         const position: Position = { row, col }
         const y = toDisplayRow(row) * squareSize
         const isLight = (row + col) % 2 === 0
-        const isSelected = arePositionsEqual(selectedSquare, position)
-        const legalMove = legalMoveMap.get(positionKey(position))
-        const isHintFrom = arePositionsEqual(hintMove?.from ?? null, position)
-        const isHintTo = arePositionsEqual(hintMove?.to ?? null, position)
+        const isSelected = !decorative && arePositionsEqual(selectedSquare, position)
+        const legalMove = !decorative ? legalMoveMap.get(positionKey(position)) : undefined
+        const isHintFrom = !decorative && arePositionsEqual(hintMove?.from ?? null, position)
+        const isHintTo = !decorative && arePositionsEqual(hintMove?.to ?? null, position)
 
         nodes.push(
           <Group key={`square-${row}-${col}`}>
@@ -231,8 +239,8 @@ export default function Board() {
               width={squareSize}
               height={squareSize}
               fill={isLight ? themeColors.light : themeColors.dark}
-              onClick={() => handleSquareClick(position)}
-              onTap={() => handleSquareClick(position)}
+              onClick={decorative ? undefined : () => handleSquareClick(position)}
+              onTap={decorative ? undefined : () => handleSquareClick(position)}
             />
             {isSelected ? (
               <Rect
@@ -280,7 +288,7 @@ export default function Board() {
     }
 
     return nodes
-  }, [handleSquareClick, hintMove, legalMoveMap, selectedSquare, squareSize, boardTheme])
+  }, [decorative, handleSquareClick, hintMove, legalMoveMap, selectedSquare, squareSize, boardTheme])
 
   return (
     <div

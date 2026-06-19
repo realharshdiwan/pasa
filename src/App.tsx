@@ -41,10 +41,6 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   const prevPhaseRef = useRef(phase)
 
   useEffect(() => {
-    useGameStore.getState().initGame('freeforall')
-  }, [])
-
-  useEffect(() => {
     if (prevPhaseRef.current === 'playing' && phase === 'finished') {
       const state = useGameStore.getState()
       const humanColor = state.humanPlayer
@@ -154,78 +150,78 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   }, [currentMode])
 
   return (
-    <div className="min-h-screen bg-stone-900 text-stone-100">
-      <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 p-4 lg:p-6">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="self-start rounded-md border border-stone-500/50 bg-stone-800 px-3 py-1.5 text-sm font-medium text-stone-300 transition hover:bg-stone-700"
-          >
-            Menu
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowSettings(true)}
-            className="self-start rounded-md border border-stone-500/70 bg-stone-800 px-3 py-1.5 text-sm font-medium text-stone-100 transition hover:bg-stone-700"
-          >
-            Settings
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowTutorial(true)}
-            className="self-start rounded-md border border-amber-500/50 bg-amber-900/30 px-3 py-1.5 text-sm font-medium text-amber-200 transition hover:bg-amber-800/40"
-          >
-            Learn to Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowLore(true)}
-            className="self-start rounded-md border border-stone-500/50 bg-stone-800 px-3 py-1.5 text-sm font-medium text-stone-300 transition hover:bg-stone-700"
-          >
-            About
-          </button>
-        </div>
+    <div className={`game-ui-fade-in absolute inset-0 z-20 ${shaking ? 'screen-shake' : ''}`}>
+      {/* Raja capture flash overlay */}
+      {showRajaFlash ? (
+        <div className="raja-flash pointer-events-none absolute inset-0 z-50 bg-red-600/60" />
+      ) : null}
+
+      {/* Top controls bar */}
+      <div className="absolute top-4 left-4 z-30 flex gap-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-md border border-stone-500/50 bg-stone-800/90 px-3 py-1.5 text-sm font-medium text-stone-300 backdrop-blur-sm transition hover:bg-stone-700"
+        >
+          Menu
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSettings(true)}
+          className="rounded-md border border-stone-500/70 bg-stone-800/90 px-3 py-1.5 text-sm font-medium text-stone-100 backdrop-blur-sm transition hover:bg-stone-700"
+        >
+          Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowTutorial(true)}
+          className="rounded-md border border-amber-500/50 bg-amber-900/30 px-3 py-1.5 text-sm font-medium text-amber-200 backdrop-blur-sm transition hover:bg-amber-800/40"
+        >
+          Learn to Play
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowLore(true)}
+          className="rounded-md border border-stone-500/50 bg-stone-800/90 px-3 py-1.5 text-sm font-medium text-stone-300 backdrop-blur-sm transition hover:bg-stone-700"
+        >
+          About
+        </button>
+      </div>
+
+      {/* Turn indicator */}
+      <div className="pointer-events-none absolute top-4 left-1/2 z-30 -translate-x-1/2">
         <TurnIndicator />
+      </div>
 
-        <div className="flex flex-1 flex-col gap-4 lg:flex-row">
-          <section className={`flex flex-1 items-center justify-center rounded-xl border border-stone-700/70 bg-stone-800/40 p-3 ${shaking ? 'screen-shake' : ''}`}>
-            <div className="relative aspect-square w-full max-w-[78vh]">
-              <Board />
-              {showRajaFlash ? (
-                <div className="raja-flash pointer-events-none absolute inset-0 z-10 rounded-xl bg-red-600/60" />
-              ) : null}
-              {phase === 'finished' ? (
-                <GameOver
-                  players={players}
-                  moveHistory={moveHistory}
-                  onPlayAgain={handlePlayAgain}
-                />
-              ) : null}
-              {showTutorial ? (
-                <Tutorial onClose={() => setShowTutorial(false)} />
-              ) : null}
-              {showSettings ? (
-                <Settings
-                  currentMode={currentMode}
-                  onModeToggle={handleModeToggle}
-                  onClose={() => setShowSettings(false)}
-                />
-              ) : null}
-              {showLore ? (
-                <Lore onClose={() => setShowLore(false)} />
-              ) : null}
-            </div>
-          </section>
-
-          <section className="w-full lg:w-80">
-            <DieRoll />
-            <div className="mt-4">
-              <MoveHistory />
-            </div>
-          </section>
+      {/* Right panel: Die + Move History */}
+      <div className="absolute right-4 top-1/2 z-30 w-72 -translate-y-1/2">
+        <DieRoll />
+        <div className="mt-4">
+          <MoveHistory />
         </div>
-      </main>
+      </div>
+
+      {/* Overlays */}
+      {phase === 'finished' ? (
+        <GameOver
+          players={players}
+          moveHistory={moveHistory}
+          onPlayAgain={handlePlayAgain}
+        />
+      ) : null}
+      {showTutorial ? (
+        <Tutorial onClose={() => setShowTutorial(false)} />
+      ) : null}
+      {showSettings ? (
+        <Settings
+          currentMode={currentMode}
+          onModeToggle={handleModeToggle}
+          onClose={() => setShowSettings(false)}
+        />
+      ) : null}
+      {showLore ? (
+        <Lore onClose={() => setShowLore(false)} />
+      ) : null}
     </div>
   )
 }
@@ -236,16 +232,16 @@ function OnlineFlow({ onBack }: { onBack: () => void }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-900 text-stone-100">
-        <p>Loading...</p>
+      <div className="absolute inset-0 z-30 flex items-center justify-center">
+        <p className="text-stone-400">Loading...</p>
       </div>
     )
   }
 
   if (!configured) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-900 p-4">
-        <div className="w-full max-w-sm rounded-xl border border-stone-500/50 bg-stone-900/95 p-6 shadow-2xl text-center">
+      <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm rounded-xl border border-stone-500/50 bg-stone-900/95 p-6 text-center shadow-2xl backdrop-blur-sm">
           <h2 className="text-xl font-bold text-stone-100">Online Multiplayer</h2>
           <p className="mt-3 text-sm text-stone-400">
             Online multiplayer requires a Supabase project. Set the
@@ -266,31 +262,109 @@ function OnlineFlow({ onBack }: { onBack: () => void }) {
   }
 
   if (!user) {
-    return <AuthScreen onAuthenticated={() => {}} />
+    return (
+      <div className="absolute inset-0 z-30">
+        <AuthScreen onAuthenticated={() => {}} />
+      </div>
+    )
   }
 
   if (onlinePhase === 'playing') {
-    return <OnlineGame />
+    return (
+      <div className="absolute inset-0 z-20">
+        <OnlineGame />
+      </div>
+    )
   }
 
-  return <Lobby onGameStart={() => {}} onBack={onBack} />
+  return (
+    <div className="absolute inset-0 z-30">
+      <Lobby onGameStart={() => {}} onBack={onBack} />
+    </div>
+  )
 }
 
 export default function App() {
   const [view, setView] = useState<AppView>('menu')
+  const [menuVisible, setMenuVisible] = useState(true)
+  const [menuFadingOut, setMenuFadingOut] = useState(false)
+
+  useEffect(() => {
+    useGameStore.getState().initGame('freeforall')
+  }, [])
+
+  const handleSelectLocal = useCallback(() => {
+    setMenuFadingOut(true)
+    setTimeout(() => {
+      setView('local')
+      setMenuVisible(false)
+    }, 800)
+  }, [])
+
+  const handleSelectOnline = useCallback(() => {
+    setMenuFadingOut(true)
+    setTimeout(() => {
+      setView('online-auth')
+      setMenuVisible(false)
+    }, 800)
+  }, [])
+
+  const handleBackToMenu = useCallback(() => {
+    useGameStore.getState().initGame('freeforall')
+    setView('menu')
+    setMenuVisible(true)
+    setMenuFadingOut(false)
+  }, [])
+
+  const boardDecorative = view === 'menu'
 
   return (
     <AuthProvider>
-      {view === 'menu' ? (
-        <MainMenu
-          onSelectLocal={() => setView('local')}
-          onSelectOnline={() => setView('online-auth')}
-        />
-      ) : view === 'local' ? (
-        <LocalGame onBack={() => setView('menu')} />
-      ) : (
-        <OnlineFlow onBack={() => setView('menu')} />
-      )}
+      <div className="menu-scene relative min-h-screen overflow-hidden">
+        {/* Vignette overlay */}
+        <div className="menu-vignette pointer-events-none absolute inset-0 z-10" />
+
+        {/* Ember particles */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} className="ember" />
+          ))}
+        </div>
+
+        {/* Board — always mounted */}
+        <div className="absolute inset-0 z-0 flex items-center justify-center">
+          <div
+            className={`transition-opacity duration-700 ${boardDecorative ? 'board-breathe' : ''}`}
+            style={{
+              width: boardDecorative ? 320 : '100%',
+              height: boardDecorative ? 320 : '100%',
+              opacity: boardDecorative ? 0.25 : 1,
+              padding: boardDecorative ? 0 : '0',
+            }}
+          >
+            <Board decorative={boardDecorative} />
+          </div>
+        </div>
+
+        {/* Menu overlay */}
+        {menuVisible ? (
+          <MainMenu
+            onSelectLocal={handleSelectLocal}
+            onSelectOnline={handleSelectOnline}
+            fadingOut={menuFadingOut}
+          />
+        ) : null}
+
+        {/* Game UI layer */}
+        {view === 'local' ? (
+          <LocalGame onBack={handleBackToMenu} />
+        ) : null}
+
+        {/* Online flow */}
+        {view.startsWith('online') ? (
+          <OnlineFlow onBack={handleBackToMenu} />
+        ) : null}
+      </div>
     </AuthProvider>
   )
 }
