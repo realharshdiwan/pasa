@@ -307,13 +307,13 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
     }
 
     await supabase
+      .from('game_states')
+      .upsert({ room_id: currentRoom.id, state: customizedState })
+
+    await supabase
       .from('rooms')
       .update({ status: 'playing' })
       .eq('id', currentRoom.id)
-
-    await supabase
-      .from('game_states')
-      .upsert({ room_id: currentRoom.id, state: customizedState })
 
     set({
       gameState: customizedState,
@@ -385,16 +385,24 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
           set({ onlinePhase: 'playing' })
 
           if (!get().gameState) {
-            const { data } = await supabase
-              .from('game_states')
-              .select('state')
-              .eq('room_id', room.id)
-              .single()
-            if (data) {
-              const gs = data.state as GameState
-              set({ gameState: gs })
-              syncToGameStore(gs, null)
+            const fetchGameState = async (attempts: number): Promise<void> => {
+              const { data } = await supabase
+                .from('game_states')
+                .select('state')
+                .eq('room_id', room.id)
+                .single()
+              if (data) {
+                const gs = data.state as GameState
+                set({ gameState: gs })
+                syncToGameStore(gs, null)
+                return
+              }
+              if (attempts < 5) {
+                await new Promise((r) => setTimeout(r, 500))
+                return fetchGameState(attempts + 1)
+              }
             }
+            await fetchGameState(0)
           }
         }
       })

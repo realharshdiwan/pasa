@@ -7,8 +7,9 @@ import MoveHistory from './MoveHistory'
 import Settings from './Settings'
 import Tutorial from './Tutorial'
 import TurnIndicator from './TurnIndicator'
-import type { GameMode } from '../engine/types'
+import type { GameMode, GameState } from '../engine/types'
 import { useMultiplayerStore } from '../store/multiplayerStore'
+import { supabase } from '../lib/supabase'
 
 export default function OnlineGame() {
   const [showTutorial, setShowTutorial] = useState(false)
@@ -19,8 +20,10 @@ export default function OnlineGame() {
   const gameState = useMultiplayerStore((s) => s.gameState)
   const lastMove = useMultiplayerStore((s) => s.lastMove)
   const leaveRoom = useMultiplayerStore((s) => s.leaveRoom)
+  const currentRoom = useMultiplayerStore((s) => s.currentRoom)
   const flashTimerRef = useRef<number | null>(null)
   const shakeTimerRef = useRef<number | null>(null)
+  const loadingPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!lastMove || lastMove.captured?.type !== 'raja') return
@@ -38,6 +41,43 @@ export default function OnlineGame() {
       if (shakeTimerRef.current !== null) window.clearTimeout(shakeTimerRef.current)
     }
   }, [lastMove])
+
+  // Poll for gameState if it's null (handles race condition where
+  // rooms UPDATE realtime fires before game_states row is written)
+  useEffect(() => {
+    if (gameState || !currentRoom) return
+
+    const fetchGameState = async (): Promise<boolean> => {
+      const { data } = await supabase
+        .from('game_states')
+        .select('state')
+        .eq('room_id', currentRoom.id)
+        .single()
+      if (data) {
+        useMultiplayerStore.setState({ gameState: data.state as GameState })
+        return true
+      }
+      return false
+    }
+
+    fetchGameState().then((loaded) => {
+      if (loaded) return
+      loadingPollRef.current = setInterval(async () => {
+        const loaded = await fetchGameState()
+        if (loaded && loadingPollRef.current) {
+          clearInterval(loadingPollRef.current)
+          loadingPollRef.current = null
+        }
+      }, 1000)
+    })
+
+    return () => {
+      if (loadingPollRef.current) {
+        clearInterval(loadingPollRef.current)
+        loadingPollRef.current = null
+      }
+    }
+  }, [gameState, currentRoom])
 
   const handleLeave = useCallback(async () => {
     await leaveRoom()
