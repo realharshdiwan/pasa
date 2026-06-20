@@ -6,11 +6,11 @@ import * as movesEngine from '../engine/moves'
 import type { Board, Move, Piece, PieceType, PlayerColor } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { BOARD_THEME_COLORS } from '../utils/cosmetics'
-import rajaImg from '../assets/pieces/raja.png'
-import rathaImg from '../assets/pieces/ratha.png'
-import gajaImg from '../assets/pieces/gaja.png'
-import ashvaImg from '../assets/pieces/ashva.png'
-import padatiImg from '../assets/pieces/padati.png'
+import rajaImg from '../assets/pieces/raja.svg'
+import rathaImg from '../assets/pieces/ratha.svg'
+import gajaImg from '../assets/pieces/gaja.svg'
+import ashvaImg from '../assets/pieces/ashva.svg'
+import padatiImg from '../assets/pieces/padati.svg'
 
 const PIECE_IMAGE_SRC: Record<PieceType, string> = {
   raja: rajaImg,
