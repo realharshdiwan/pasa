@@ -378,11 +378,24 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
         schema: 'public',
         table: 'rooms',
         filter: `id=eq.${roomId}`,
-      }, (payload) => {
+      }, async (payload) => {
         const room = payload.new as Room
         set({ currentRoom: room })
         if (room.status === 'playing' && get().onlinePhase !== 'playing') {
           set({ onlinePhase: 'playing' })
+
+          if (!get().gameState) {
+            const { data } = await supabase
+              .from('game_states')
+              .select('state')
+              .eq('room_id', room.id)
+              .single()
+            if (data) {
+              const gs = data.state as GameState
+              set({ gameState: gs })
+              syncToGameStore(gs, null)
+            }
+          }
         }
       })
       .subscribe()
