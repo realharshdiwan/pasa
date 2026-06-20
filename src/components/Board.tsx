@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import { Circle, Group, Layer, Line, Rect, RegularPolygon, Stage } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, RegularPolygon, Stage } from 'react-konva'
 import Konva from 'konva'
 import { PLAYER_COLORS } from '../constants/colors'
 import * as movesEngine from '../engine/moves'
@@ -9,6 +9,43 @@ import type { Piece, PieceType, PlayerColor, Position } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { BOARD_THEME_COLORS } from '../utils/cosmetics'
 import { playCaptureSound, playMoveSound, playRajaCaptureSound } from '../utils/sound'
+import rajaImg from '../assets/pieces/raja.png'
+import rathaImg from '../assets/pieces/ratha.png'
+import gajaImg from '../assets/pieces/gaja.png'
+import ashvaImg from '../assets/pieces/ashva.png'
+import padatiImg from '../assets/pieces/padati.png'
+
+const PIECE_IMAGES: Record<PieceType, string> = {
+  raja: rajaImg,
+  ratha: rathaImg,
+  gaja: gajaImg,
+  ashva: ashvaImg,
+  padati: padatiImg,
+}
+
+const pieceImageCache = new Map<PieceType, HTMLImageElement>()
+const pieceImagePromises = new Map<PieceType, Promise<HTMLImageElement>>()
+
+function loadPieceImage(type: PieceType): HTMLImageElement | null {
+  return pieceImageCache.get(type) ?? null
+}
+
+function ensurePieceImagesLoaded(): void {
+  for (const [type, src] of Object.entries(PIECE_IMAGES) as [PieceType, string][]) {
+    if (pieceImageCache.has(type) || pieceImagePromises.has(type)) continue
+    const promise = new Promise<HTMLImageElement>((resolve) => {
+      const img = new window.Image()
+      img.onload = () => {
+        pieceImageCache.set(type, img)
+        resolve(img)
+      }
+      img.src = src
+    })
+    pieceImagePromises.set(type, promise)
+  }
+}
+
+ensurePieceImagesLoaded()
 
 const BOARD_DIMENSION = 8
 const SELECTED_HIGHLIGHT = 'rgba(255, 255, 0, 0.4)'
@@ -50,12 +87,21 @@ export default function Board() {
   const selectSquare = useGameStore((state) => state.selectSquare)
   const applyMove = useGameStore((state) => state.applyMove)
 
+  const [imagesReady, setImagesReady] = useState(() => {
+    return (['raja', 'ratha', 'gaja', 'ashva', 'padati'] as PieceType[]).every((t) => pieceImageCache.has(t))
+  })
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
   const [boardSize, setBoardSize] = useState<number>(640)
   const prevMoveHistoryLenRef = useRef<number>(0)
   const animatingRef = useRef(false)
   const moveHistoryLen = useGameStore((state) => state.gameState.moveHistory.length)
+
+  useEffect(() => {
+    if (imagesReady) return
+    Promise.all([...pieceImagePromises.values()]).then(() => setImagesReady(true))
+  }, [imagesReady])
 
   useEffect(() => {
     const container = containerRef.current
@@ -201,13 +247,14 @@ export default function Board() {
             radius={pieceRadius}
             opacity={shouldDimPiece ? 0.35 : 1}
             theme={pieceTheme}
+            imagesReady={imagesReady}
           />,
         )
       }
     }
 
     return nodes
-  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, pieceTheme])
+  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, pieceTheme, imagesReady])
 
   const squareNodes = useMemo(() => {
     const nodes: ReactElement[] = []
@@ -308,10 +355,12 @@ interface PieceNodeProps {
   radius: number
   opacity: number
   theme: 'classic' | 'geometric' | 'minimal'
+  imagesReady: boolean
 }
 
-function PieceNode({ piece, centerX, centerY, radius, opacity, theme }: PieceNodeProps) {
+function PieceNode({ piece, centerX, centerY, radius, opacity, theme, imagesReady }: PieceNodeProps) {
   const s = radius * 0.7
+  const img = imagesReady ? loadPieceImage(piece.type) : null
 
   return (
     <Group
@@ -338,12 +387,22 @@ function PieceNode({ piece, centerX, centerY, radius, opacity, theme }: PieceNod
           strokeWidth={Math.max(1, radius * 0.05)}
         />
       ) : null}
-      <PieceIcon type={piece.type} size={s} color={piece.controlledBy} theme={theme} />
+      {img ? (
+        <KonvaImage
+          image={img}
+          x={-radius * 0.7}
+          y={-radius * 0.7}
+          width={radius * 1.4}
+          height={radius * 1.4}
+        />
+      ) : (
+        <PieceIconSVG type={piece.type} size={s} color={piece.controlledBy} theme={theme} />
+      )}
     </Group>
   )
 }
 
-function PieceIcon({ type, size, color, theme }: { type: PieceType; size: number; color: PlayerColor; theme: 'classic' | 'geometric' | 'minimal' }) {
+function PieceIconSVG({ type, size, color, theme }: { type: PieceType; size: number; color: PlayerColor; theme: 'classic' | 'geometric' | 'minimal' }) {
   const white = theme === 'minimal' ? 'rgba(255,255,255,0.7)' : '#FFFFFF'
   const strokeW = theme === 'geometric' ? size * 0.08 : 0
 

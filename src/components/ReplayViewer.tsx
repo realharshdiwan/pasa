@@ -1,11 +1,32 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Circle, Group, Layer, Line, Rect, RegularPolygon, Stage } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Layer, Rect, Stage } from 'react-konva'
 import { PLAYER_COLORS } from '../constants/colors'
 import * as boardEngine from '../engine/board'
 import * as movesEngine from '../engine/moves'
 import type { Board, Move, Piece, PieceType, PlayerColor } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { BOARD_THEME_COLORS } from '../utils/cosmetics'
+import rajaImg from '../assets/pieces/raja.png'
+import rathaImg from '../assets/pieces/ratha.png'
+import gajaImg from '../assets/pieces/gaja.png'
+import ashvaImg from '../assets/pieces/ashva.png'
+import padatiImg from '../assets/pieces/padati.png'
+
+const PIECE_IMAGE_SRC: Record<PieceType, string> = {
+  raja: rajaImg,
+  ratha: rathaImg,
+  gaja: gajaImg,
+  ashva: ashvaImg,
+  padati: padatiImg,
+}
+
+const replayImageCache = new Map<PieceType, HTMLImageElement>()
+
+for (const [type, src] of Object.entries(PIECE_IMAGE_SRC) as [PieceType, string][]) {
+  const img = new window.Image()
+  img.onload = () => replayImageCache.set(type, img)
+  img.src = src
+}
 
 const BOARD_DIMENSION = 8
 const HIGHLIGHT_SQUARE = 'rgba(255, 200, 0, 0.4)'
@@ -89,7 +110,7 @@ function ReplayBoard({ board, highlightMove, size, boardTheme }: ReplayBoardProp
 }
 
 function ReplayPieceNode({ piece, centerX, centerY, radius }: { piece: Piece; centerX: number; centerY: number; radius: number }) {
-  const s = radius * 0.7
+  const img = replayImageCache.get(piece.type) ?? null
 
   return (
     <Group
@@ -114,67 +135,17 @@ function ReplayPieceNode({ piece, centerX, centerY, radius }: { piece: Piece; ce
           strokeWidth={Math.max(1, radius * 0.05)}
         />
       ) : null}
-      <ReplayPieceIcon type={piece.type} size={s} color={piece.controlledBy} />
+      {img ? (
+        <KonvaImage
+          image={img}
+          x={-radius * 0.7}
+          y={-radius * 0.7}
+          width={radius * 1.4}
+          height={radius * 1.4}
+        />
+      ) : null}
     </Group>
   )
-}
-
-function ReplayPieceIcon({ type, size, color }: { type: PieceType; size: number; color: PlayerColor }) {
-  const white = '#FFFFFF'
-
-  switch (type) {
-    case 'raja':
-      return (
-        <Group>
-          <RegularPolygon sides={5} radius={size * 0.55} fill={white} />
-          <Circle y={-size * 0.55} radius={size * 0.18} fill={white} />
-        </Group>
-      )
-    case 'ratha':
-      return (
-        <Group>
-          <Rect x={-size * 0.28} y={-size * 0.5} width={size * 0.56} height={size * 0.65} fill={white} />
-          <Rect x={-size * 0.38} y={-size * 0.6} width={size * 0.12} height={size * 0.2} fill={white} />
-          <Rect x={-size * 0.06} y={-size * 0.6} width={size * 0.12} height={size * 0.2} fill={white} />
-          <Rect x={size * 0.26} y={-size * 0.6} width={size * 0.12} height={size * 0.2} fill={white} />
-        </Group>
-      )
-    case 'gaja':
-      return (
-        <Group>
-          <Circle y={-size * 0.1} radius={size * 0.35} fill={white} />
-          <Line points={[0, size * 0.05, 0, size * 0.45]} stroke={white} strokeWidth={size * 0.14} lineCap="round" />
-          <Line points={[0, size * 0.45, -size * 0.12, size * 0.35]} stroke={white} strokeWidth={size * 0.1} lineCap="round" />
-        </Group>
-      )
-    case 'ashva':
-      return (
-        <Group>
-          <Line
-            points={[
-              -size * 0.1, size * 0.4,
-              -size * 0.05, -size * 0.05,
-              size * 0.05, -size * 0.35,
-              size * 0.2, -size * 0.45,
-              size * 0.25, -size * 0.3,
-              size * 0.1, -size * 0.15,
-              size * 0.15, size * 0.1,
-              size * 0.05, size * 0.4,
-            ]}
-            closed
-            fill={white}
-          />
-          <Circle x={size * 0.12} y={-size * 0.32} radius={size * 0.06} fill={PLAYER_COLORS[color]} />
-        </Group>
-      )
-    case 'padati':
-      return (
-        <Group>
-          <Circle y={-size * 0.15} radius={size * 0.22} fill={white} />
-          <Rect x={-size * 0.18} y={size * 0.05} width={size * 0.36} height={size * 0.35} fill={white} />
-        </Group>
-      )
-  }
 }
 
 const PIECE_NAMES: Record<PieceType, string> = {
