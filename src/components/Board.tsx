@@ -338,6 +338,7 @@ export default function Board() {
         ref={stageRef}
         width={boardSize}
         height={boardSize}
+        pixelRatio={window.devicePixelRatio || 1}
       >
         <Layer>
           {squareNodes}
@@ -388,21 +389,13 @@ function PieceNode({ piece, centerX, centerY, radius, opacity, theme, imagesRead
         />
       ) : null}
       {img ? (
-        <Group
-          clipFunc={(ctx) => {
-            ctx.beginPath()
-            ctx.arc(0, 0, radius, 0, Math.PI * 2)
-            ctx.closePath()
-          }}
-        >
-          <KonvaImage
-            image={img}
-            x={-radius}
-            y={-radius}
-            width={radius * 2}
-            height={radius * 2}
-          />
-        </Group>
+        <KonvaImage
+          image={img}
+          x={-radius}
+          y={-radius}
+          width={radius * 2}
+          height={radius * 2}
+        />
       ) : (
         <PieceIconSVG type={piece.type} size={s} color={piece.controlledBy} theme={theme} />
       )}
