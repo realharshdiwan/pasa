@@ -388,13 +388,21 @@ function PieceNode({ piece, centerX, centerY, radius, opacity, theme, imagesRead
         />
       ) : null}
       {img ? (
-        <KonvaImage
-          image={img}
-          x={-radius * 0.7}
-          y={-radius * 0.7}
-          width={radius * 1.4}
-          height={radius * 1.4}
-        />
+        <Group
+          clipFunc={(ctx) => {
+            ctx.beginPath()
+            ctx.arc(0, 0, radius, 0, Math.PI * 2)
+            ctx.closePath()
+          }}
+        >
+          <KonvaImage
+            image={img}
+            x={-radius}
+            y={-radius}
+            width={radius * 2}
+            height={radius * 2}
+          />
+        </Group>
       ) : (
         <PieceIconSVG type={piece.type} size={s} color={piece.controlledBy} theme={theme} />
       )}
