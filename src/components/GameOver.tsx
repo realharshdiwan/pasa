@@ -58,7 +58,7 @@ export default function GameOver({ players, moveHistory, onPlayAgain }: GameOver
   }
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-md rounded-xl border border-stone-500/50 bg-stone-900/95 p-5 shadow-2xl">
         <h2 className="text-center text-2xl font-bold text-stone-100">Game Over</h2>
 

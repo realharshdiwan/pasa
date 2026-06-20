@@ -73,7 +73,7 @@ export default function Tutorial({ onClose }: TutorialProps) {
   }, [])
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/70 p-4">
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-lg rounded-xl border border-stone-500/50 bg-stone-900/95 p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-stone-100">{step.title}</h2>
