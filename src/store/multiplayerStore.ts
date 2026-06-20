@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import * as boardEngine from '../engine/board'
+import * as eliminationEngine from '../engine/elimination'
 import * as movesEngine from '../engine/moves'
+import * as scoringEngine from '../engine/scoring'
 import type { CandidateMove } from '../engine/moves'
 import type {
   DieFace,
@@ -11,6 +13,7 @@ import type {
   PlayerColor,
   Position,
 } from '../engine/types'
+import { useGameStore } from './gameStore'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import type { BoardTheme, DieTheme, PieceTheme } from '../utils/cosmetics'
 
@@ -30,6 +33,67 @@ function generateRoomCode(): string {
     code += chars[Math.floor(Math.random() * chars.length)]
   }
   return code
+}
+
+function createMoveRecord(gameState: GameState, move: CandidateMove, roll: DieFace): Move {
+  return {
+    player: gameState.currentTurn,
+    piece: move.piece,
+    from: move.from,
+    to: move.to,
+    captured: move.captured,
+    roll,
+    usedRajaOverride: move.piece.type === 'raja',
+  }
+}
+
+function processMove(state: GameState, move: Move): GameState {
+  const appliedMove = movesEngine.applyMoveToBoard(state.board, {
+    piece: move.piece,
+    from: move.from,
+    to: move.to,
+    captured: move.captured,
+  })
+
+  const playersAfterCapture = scoringEngine.awardCapturePoints(
+    state.players,
+    move.player,
+    appliedMove.captured,
+  )
+
+  let nextGameState: GameState = {
+    ...state,
+    board: appliedMove.board,
+    players: playersAfterCapture,
+    currentRoll: null,
+    movesSinceLastCapture: appliedMove.captured
+      ? 0
+      : state.movesSinceLastCapture + 1,
+    moveHistory: [...state.moveHistory, move],
+  }
+
+  if (appliedMove.captured?.type === 'raja') {
+    nextGameState = eliminationEngine.captureRajaAndTransferArmies(
+      nextGameState,
+      move.player,
+      appliedMove.captured.controlledBy,
+    )
+  }
+
+  if (nextGameState.phase === 'playing') {
+    nextGameState = {
+      ...nextGameState,
+      currentTurn: getNextTurn(nextGameState.turnOrder, nextGameState.currentTurn),
+    }
+  }
+
+  nextGameState = eliminationEngine.checkNoCaptureTimeout(nextGameState)
+
+  return nextGameState
+}
+
+function syncToGameStore(gameState: GameState, lastMove: Move | null): void {
+  useGameStore.setState({ gameState, lastMove })
 }
 
 export interface Room {
@@ -83,7 +147,6 @@ export interface MultiplayerState {
   passOnlineTurn: () => Promise<void>
 
   receiveMove: (move: Move) => void
-  receiveRoll: (playerColor: PlayerColor, roll: DieFace) => void
 }
 
 export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
@@ -256,6 +319,8 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
       gameState: customizedState,
       onlinePhase: 'playing',
     })
+
+    syncToGameStore(customizedState, null)
   },
 
   subscribeToRoom: (roomId: string): void => {
@@ -376,28 +441,10 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
   applyOnlineMove: async (move: CandidateMove): Promise<void> => {
     const { currentRoom, gameState, myColor } = get()
     if (!currentRoom || !gameState || gameState.currentTurn !== myColor) return
+    if (gameState.currentRoll === null) return
 
-    const appliedMove = movesEngine.applyMoveToBoard(gameState.board, move)
-    const moveRecord: Move = {
-      player: myColor,
-      piece: move.piece,
-      from: move.from,
-      to: move.to,
-      captured: move.captured,
-      roll: gameState.currentRoll!,
-      usedRajaOverride: move.piece.type === 'raja',
-    }
-
-    const nextTurn = getNextTurn(gameState.turnOrder, gameState.currentTurn)
-
-    const nextGameState: GameState = {
-      ...gameState,
-      board: appliedMove.board,
-      currentTurn: nextTurn,
-      currentRoll: null,
-      moveHistory: [...gameState.moveHistory, moveRecord],
-      movesSinceLastCapture: appliedMove.captured ? 0 : gameState.movesSinceLastCapture + 1,
-    }
+    const moveRecord = createMoveRecord(gameState, move, gameState.currentRoll)
+    const nextGameState = processMove(gameState, moveRecord)
 
     await supabase.from('moves').insert({
       room_id: currentRoom.id,
@@ -412,7 +459,7 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
       captured_piece_id: move.captured?.id ?? null,
       captured_piece_type: move.captured?.type ?? null,
       captured_controlled_by: move.captured?.controlledBy ?? null,
-      roll: gameState.currentRoll!,
+      roll: gameState.currentRoll,
       used_raja_override: move.piece.type === 'raja',
     })
 
@@ -427,6 +474,8 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
       legalMovesForSelected: [],
       hintMove: null,
     })
+
+    syncToGameStore(nextGameState, moveRecord)
   },
 
   rollOnlineDie: async (): Promise<void> => {
@@ -445,6 +494,7 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
       .upsert({ room_id: currentRoom.id, state: nextGameState })
 
     set({ gameState: nextGameState })
+    syncToGameStore(nextGameState, get().lastMove)
   },
 
   passOnlineTurn: async (): Promise<void> => {
@@ -463,29 +513,14 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
       .upsert({ room_id: currentRoom.id, state: nextGameState })
 
     set({ gameState: nextGameState })
+    syncToGameStore(nextGameState, get().lastMove)
   },
 
   receiveMove: (move: Move): void => {
     const { gameState } = get()
     if (!gameState) return
 
-    const appliedMove = movesEngine.applyMoveToBoard(gameState.board, {
-      piece: move.piece,
-      from: move.from,
-      to: move.to,
-      captured: move.captured,
-    })
-
-    const nextTurn = getNextTurn(gameState.turnOrder, gameState.currentTurn)
-
-    const nextGameState: GameState = {
-      ...gameState,
-      board: appliedMove.board,
-      currentTurn: nextTurn,
-      currentRoll: null,
-      moveHistory: [...gameState.moveHistory, move],
-      movesSinceLastCapture: move.captured ? 0 : gameState.movesSinceLastCapture + 1,
-    }
+    const nextGameState = processMove(gameState, move)
 
     set({
       gameState: nextGameState,
@@ -493,15 +528,8 @@ export const useMultiplayerStore = create<MultiplayerState>((set, get) => ({
       selectedSquare: null,
       legalMovesForSelected: [],
     })
-  },
 
-  receiveRoll: (_playerColor: PlayerColor, roll: DieFace): void => {
-    const { gameState } = get()
-    if (!gameState) return
-
-    set({
-      gameState: { ...gameState, currentRoll: roll },
-    })
+    syncToGameStore(nextGameState, move)
   },
 }))
 

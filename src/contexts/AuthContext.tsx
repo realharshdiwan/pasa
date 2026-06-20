@@ -36,15 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return () => { mountedRef.current = false; clearTimeout(t) }
     }
 
-    console.log('[Auth] Configured, checking session...')
-
     const timeout = setTimeout(() => {
-      console.log('[Auth] Timeout fired, stopping loading')
       if (mountedRef.current) setLoading(false)
     }, 3000)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[Auth] onAuthStateChange:', event, 'user:', session?.user?.id ?? 'none')
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       clearTimeout(timeout)
       if (mountedRef.current) {
         setUser(session?.user ?? null)
@@ -53,14 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[Auth] getSession resolved, user:', session?.user?.id ?? 'none')
       clearTimeout(timeout)
       if (mountedRef.current) {
         setUser(session?.user ?? null)
         setLoading(false)
       }
-    }).catch((err) => {
-      console.log('[Auth] getSession error:', err)
+    }).catch(() => {
       clearTimeout(timeout)
       if (mountedRef.current) setLoading(false)
     })
