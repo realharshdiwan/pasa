@@ -5,6 +5,7 @@ import DieRoll from './components/DieRoll'
 import GameOver from './components/GameOver'
 import Lobby from './components/Lobby'
 import Lore from './components/Lore'
+import MainMenu from './components/MainMenu'
 import MoveHistory from './components/MoveHistory'
 import OnlineGame from './components/OnlineGame'
 import Settings from './components/Settings'
@@ -12,52 +13,20 @@ import Tutorial from './components/Tutorial'
 import TurnIndicator from './components/TurnIndicator'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
-import type { GameMode } from './engine/types'
+import { playEliminationSound } from './utils/sound'
+import type { GameMode, PlayerColor } from './engine/types'
 import { useGameStore } from './store/gameStore'
 import { useMultiplayerStore } from './store/multiplayerStore'
 import { recordGame } from './utils/cosmetics'
+import { PLAYER_COLORS } from './constants/colors'
 
 type AppView = 'menu' | 'local' | 'online-auth' | 'online-lobby' | 'online-game'
 
-function GameModeSelector({ onSelect }: { onSelect: (view: AppView) => void }) {
-  const { configured } = useAuth()
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-900 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-stone-500/50 bg-stone-900/95 p-6 shadow-2xl">
-        <h1 className="text-center text-2xl font-bold text-stone-100">Pasa</h1>
-        <p className="mt-1 text-center text-xs text-stone-500">Chaturaji — the ancient game of four kings</p>
-
-        <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={() => onSelect('local')}
-            className="w-full rounded-md bg-amber-600 px-4 py-3 font-semibold text-stone-950 transition hover:bg-amber-500"
-          >
-            Local Game
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelect('online-auth')}
-            className={`w-full rounded-md border px-4 py-3 font-medium transition ${
-              configured
-                ? 'border-stone-500/50 bg-stone-700 text-stone-100 hover:bg-stone-600'
-                : 'cursor-not-allowed border-stone-600 bg-stone-800 text-stone-500'
-            }`}
-            disabled={!configured}
-          >
-            Online Multiplayer {!configured ? '(requires setup)' : ''}
-          </button>
-        </div>
-
-        <p className="mt-6 text-center text-xs text-stone-500">
-          Local: play on one device against AI bots
-          <br />
-          Online: play with friends via shared room code
-        </p>
-      </div>
-    </div>
-  )
+const PLAYER_LABELS: Record<PlayerColor, string> = {
+  red: 'Red',
+  blue: 'Blue',
+  yellow: 'Yellow',
+  green: 'Green',
 }
 
 function LocalGame({ onBack }: { onBack: () => void }) {
@@ -67,6 +36,8 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   const [showLore, setShowLore] = useState(false)
   const [showRajaFlash, setShowRajaFlash] = useState(false)
   const [shaking, setShaking] = useState(false)
+  const [showGameOver, setShowGameOver] = useState(false)
+  const [eliminationSplash, setEliminationSplash] = useState<{ color: PlayerColor; placement: number } | null>(null)
   const phase = useGameStore((state) => state.gameState.phase)
   const players = useGameStore((state) => state.gameState.players)
   const moveHistory = useGameStore((state) => state.gameState.moveHistory)
@@ -78,7 +49,9 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   const prevMoveLenRef = useRef(0)
   const flashTimerRef = useRef<number | null>(null)
   const shakeTimerRef = useRef<number | null>(null)
+  const elimTimerRef = useRef<number | null>(null)
   const prevPhaseRef = useRef(phase)
+  const prevEliminatedRef = useRef<Set<PlayerColor>>(new Set())
 
   useEffect(() => {
     useGameStore.getState().initGame('freeforall')
@@ -93,9 +66,38 @@ function LocalGame({ onBack }: { onBack: () => void }) {
         .map(([color]) => color)
       const won = winner.includes(humanColor)
       recordGame(won)
+      setShowGameOver(true)
     }
     prevPhaseRef.current = phase
   }, [phase])
+
+  useEffect(() => {
+    const currentEliminated = new Set(
+      Object.entries(players)
+        .filter(([, p]) => p.isEliminated)
+        .map(([c]) => c as PlayerColor)
+    )
+
+    for (const color of currentEliminated) {
+      if (!prevEliminatedRef.current.has(color) && players[color].placement !== null) {
+        if (color !== humanPlayer) {
+          playEliminationSound()
+          setEliminationSplash({ color, placement: players[color].placement! })
+          elimTimerRef.current = window.setTimeout(() => {
+            setEliminationSplash(null)
+          }, 2200)
+        }
+      }
+    }
+
+    prevEliminatedRef.current = currentEliminated
+
+    return () => {
+      if (elimTimerRef.current !== null) {
+        window.clearTimeout(elimTimerRef.current)
+      }
+    }
+  }, [players, humanPlayer])
 
   useEffect(() => {
     if (moveHistory.length === 0) {
@@ -179,6 +181,7 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   }, [phase, timerMode])
 
   const handlePlayAgain = useCallback((): void => {
+    setShowGameOver(false)
     useGameStore.getState().initGame(currentMode)
   }, [currentMode])
 
@@ -194,7 +197,7 @@ function LocalGame({ onBack }: { onBack: () => void }) {
   }, [currentMode])
 
   return (
-    <div className="min-h-screen bg-stone-900 text-stone-100">
+    <div className="screen-enter min-h-screen bg-stone-900 text-stone-100">
       <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 p-4 lg:p-6">
         <div className="flex items-center gap-3">
           <button
@@ -229,17 +232,35 @@ function LocalGame({ onBack }: { onBack: () => void }) {
         <TurnIndicator />
 
         <div className="flex flex-1 flex-col gap-4 lg:flex-row">
-          <section className={`flex flex-1 items-center justify-center rounded-xl border border-stone-700/70 bg-stone-800/40 p-3 ${shaking ? 'screen-shake' : ''}`}>
+          <section className={`relative flex flex-1 items-center justify-center rounded-xl border border-stone-700/70 bg-stone-800/40 p-3 ${shaking ? 'screen-shake' : ''}`}>
             <div className="relative aspect-square w-full max-w-[78vh]">
               <Board />
               {showRajaFlash ? (
                 <div className="raja-flash pointer-events-none absolute inset-0 z-10 rounded-xl bg-red-600/60" />
               ) : null}
-              {phase === 'finished' ? (
+              {eliminationSplash ? (
+                <div className="elimination-splash pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                  <div
+                    className="rounded-xl px-8 py-5 text-center shadow-2xl"
+                    style={{ backgroundColor: `${PLAYER_COLORS[eliminationSplash.color]}dd` }}
+                  >
+                    <p className="text-2xl font-bold text-white">
+                      {PLAYER_LABELS[eliminationSplash.color]} Eliminated
+                    </p>
+                    <p className="mt-1 text-lg text-white/80">
+                      {eliminationSplash.placement === 4 ? '4th Place' :
+                       eliminationSplash.placement === 3 ? '3rd Place' :
+                       eliminationSplash.placement === 2 ? '2nd Place' : ''}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              {phase === 'finished' && showGameOver ? (
                 <GameOver
                   players={players}
                   moveHistory={moveHistory}
-                  onPlayAgain={handlePlayAgain}
+                  onPlayAgain={() => { setShowGameOver(false); handlePlayAgain() }}
+                  onClose={() => setShowGameOver(false)}
                 />
               ) : null}
               {showTutorial ? (
@@ -316,18 +337,27 @@ function OnlineFlow({ onBack }: { onBack: () => void }) {
   return <Lobby onGameStart={() => {}} onBack={onBack} />
 }
 
-export default function App() {
+function AppShell() {
   const [view, setView] = useState<AppView>('menu')
+  const { configured } = useAuth()
 
+  return view === 'menu' ? (
+    <MainMenu
+      onSelectLocal={() => setView('local')}
+      onSelectOnline={() => setView('online-auth')}
+      onlineEnabled={configured}
+    />
+  ) : view === 'local' ? (
+    <LocalGame onBack={() => setView('menu')} />
+  ) : (
+    <OnlineFlow onBack={() => setView('menu')} />
+  )
+}
+
+export default function App() {
   return (
     <AuthProvider>
-      {view === 'menu' ? (
-        <GameModeSelector onSelect={setView} />
-      ) : view === 'local' ? (
-        <LocalGame onBack={() => setView('menu')} />
-      ) : (
-        <OnlineFlow onBack={() => setView('menu')} />
-      )}
+      <AppShell />
     </AuthProvider>
   )
 }

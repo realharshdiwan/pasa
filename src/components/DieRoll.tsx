@@ -3,95 +3,22 @@ import { getHintMove } from '../engine/ai'
 import type { CandidateMove } from '../engine/moves'
 import type { DieFace, PlayerColor } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
-import { DIE_THEME_COLORS } from '../utils/cosmetics'
 import { capitalizeColor } from '../utils/format'
-import { playDieRollSound, playPassTurnSound } from '../utils/sound'
-
-const ROLL_LABELS_SANSKRIT = {
-  2: 'Ashva',
-  3: 'Gaja',
-  4: 'Ratha',
-  5: 'Padati',
-} as const
-
-const ROLL_LABELS_ENGLISH = {
-  2: 'Horse',
-  3: 'Elephant',
-  4: 'Chariot',
-  5: 'Foot Soldier',
-} as const
-
-const DIE_FACES: DieFace[] = [2, 3, 4, 5]
-
-const PLAYER_ORDER: PlayerColor[] = ['red', 'blue', 'yellow', 'green']
+import { playDieRollSound, playDieResultSound, playPassTurnSound } from '../utils/sound'
+import DieFaceDisplay from './DieFaceDisplay'
+import {
+  DIE_FACES,
+  PLAYER_ORDER,
+  ROLL_LABELS_SANSKRIT,
+  ROLL_LABELS_ENGLISH,
+  ROLL_ANIMATION_MS,
+  ROLL_CYCLE_MS,
+} from './dieConstants'
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-const ROLL_ANIMATION_MS = 600
-const ROLL_CYCLE_MS = 100
-
-const DIE_DOT_POSITIONS: Record<DieFace, [number, number][]> = {
-  2: [
-    [0.25, 0.25],
-    [0.75, 0.75],
-  ],
-  3: [
-    [0.25, 0.25],
-    [0.5, 0.5],
-    [0.75, 0.75],
-  ],
-  4: [
-    [0.25, 0.25],
-    [0.75, 0.25],
-    [0.25, 0.75],
-    [0.75, 0.75],
-  ],
-  5: [
-    [0.25, 0.25],
-    [0.75, 0.25],
-    [0.5, 0.5],
-    [0.25, 0.75],
-    [0.75, 0.75],
-  ],
-}
-
-interface DieFaceProps {
-  face: DieFace
-  size: number
-}
-
-function DieFaceDisplay({ face, size, theme }: DieFaceProps & { theme: string }) {
-  const dots = DIE_DOT_POSITIONS[face]
-  const dotRadius = size * 0.1
-  const padding = size * 0.15
-  const colors = DIE_THEME_COLORS[theme as keyof typeof DIE_THEME_COLORS] || DIE_THEME_COLORS.classic
-
-  return (
-    <div
-      className="flex items-center justify-center rounded-lg border-2"
-      style={{ width: size, height: size, backgroundColor: colors.bg, borderColor: colors.border }}
-    >
-      <div className="relative" style={{ width: size - padding * 2, height: size - padding * 2 }}>
-        {dots.map(([x, y], i) => (
-          <div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: dotRadius * 2,
-              height: dotRadius * 2,
-              left: `calc(${x * 100}% - ${dotRadius}px)`,
-              top: `calc(${y * 100}% - ${dotRadius}px)`,
-              backgroundColor: colors.dots,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  )
 }
 
 export default function DieRoll() {
@@ -114,8 +41,14 @@ export default function DieRoll() {
   const [localHintMove, setLocalHintMove] = useState<CandidateMove | null>(null)
   const [isRolling, setIsRolling] = useState(false)
   const [rollingFace, setRollingFace] = useState<DieFace>(2)
+  const [lastPointsChange, setLastPointsChange] = useState<Record<PlayerColor, number>>({
+    red: 0, blue: 0, yellow: 0, green: 0,
+  })
   const timeoutRef = useRef<number | null>(null)
   const cycleRef = useRef<number | null>(null)
+  const prevPointsRef = useRef<Record<PlayerColor, number>>({
+    red: 0, blue: 0, yellow: 0, green: 0,
+  })
 
   useEffect(() => {
     if (!showForfeitMessage) {
@@ -141,6 +74,37 @@ export default function DieRoll() {
     }
   }, [])
 
+  useEffect(() => {
+    const changes: Record<PlayerColor, number> = { red: 0, blue: 0, yellow: 0, green: 0 }
+    let hasChange = false
+    for (const color of PLAYER_ORDER) {
+      const diff = players[color].points - prevPointsRef.current[color]
+      if (diff > 0) {
+        changes[color] = diff
+        hasChange = true
+      }
+    }
+    if (hasChange) {
+      setLastPointsChange(changes)
+      const timer = window.setTimeout(() => {
+        setLastPointsChange({ red: 0, blue: 0, yellow: 0, green: 0 })
+      }, 800)
+      prevPointsRef.current = {
+        red: players.red.points,
+        blue: players.blue.points,
+        yellow: players.yellow.points,
+        green: players.green.points,
+      }
+      return () => window.clearTimeout(timer)
+    }
+    prevPointsRef.current = {
+      red: players.red.points,
+      blue: players.blue.points,
+      yellow: players.yellow.points,
+      green: players.green.points,
+    }
+  }, [players])
+
   const handleRollDie = useCallback((): void => {
     if (isRolling) {
       return
@@ -148,14 +112,19 @@ export default function DieRoll() {
 
     setIsRolling(true)
     playDieRollSound()
+
     let cycleCount = 0
-    const maxCycles = Math.floor(ROLL_ANIMATION_MS / ROLL_CYCLE_MS)
+    const totalCycles = Math.floor(ROLL_ANIMATION_MS / ROLL_CYCLE_MS)
+    const slowdownStart = Math.floor(totalCycles * 0.65)
 
     cycleRef.current = window.setInterval(() => {
       cycleCount += 1
       setRollingFace(DIE_FACES[cycleCount % DIE_FACES.length])
 
-      if (cycleCount >= maxCycles) {
+      const isSlowPhase = cycleCount >= slowdownStart
+      const intervalMs = isSlowPhase ? ROLL_CYCLE_MS + 50 : ROLL_CYCLE_MS
+
+      if (cycleCount >= totalCycles) {
         if (cycleRef.current !== null) {
           window.clearInterval(cycleRef.current)
           cycleRef.current = null
@@ -165,6 +134,12 @@ export default function DieRoll() {
         rollDie()
 
         const nextGameState = useGameStore.getState().gameState
+        const rolledValue = nextGameState.currentRoll
+        if (rolledValue !== null) {
+          setRollingFace(rolledValue)
+          playDieResultSound()
+        }
+
         const didForfeitTurn =
           nextGameState.phase === 'playing' &&
           nextGameState.currentRoll === null &&
@@ -175,6 +150,42 @@ export default function DieRoll() {
         }
 
         setIsRolling(false)
+        return
+      }
+
+      if (isSlowPhase && cycleRef.current !== null) {
+        window.clearInterval(cycleRef.current)
+        cycleRef.current = window.setInterval(() => {
+          cycleCount += 1
+          setRollingFace(DIE_FACES[cycleCount % DIE_FACES.length])
+
+          if (cycleCount >= totalCycles) {
+            if (cycleRef.current !== null) {
+              window.clearInterval(cycleRef.current)
+              cycleRef.current = null
+            }
+
+            const previousTurn = currentTurn
+            rollDie()
+
+            const nextGameState = useGameStore.getState().gameState
+            const rolledValue = nextGameState.currentRoll
+            if (rolledValue !== null) {
+              setRollingFace(rolledValue)
+            }
+
+            const didForfeitTurn =
+              nextGameState.phase === 'playing' &&
+              nextGameState.currentRoll === null &&
+              nextGameState.currentTurn !== previousTurn
+
+            if (didForfeitTurn) {
+              setShowForfeitMessage(true)
+            }
+
+            setIsRolling(false)
+          }
+        }, intervalMs)
       }
     }, ROLL_CYCLE_MS)
   }, [currentTurn, isRolling, rollDie])
@@ -290,10 +301,11 @@ export default function DieRoll() {
           {PLAYER_ORDER.map((color: PlayerColor) => {
             const player = players[color]
             const isEliminated = player.isEliminated
+            const change = lastPointsChange[color]
             return (
               <li
                 key={color}
-                className={`flex items-center justify-between rounded px-2 py-1 ${
+                className={`relative flex items-center justify-between rounded px-2 py-1 ${
                   isEliminated ? 'bg-stone-700/40 text-stone-400' : 'bg-stone-700/70'
                 }`}
               >
@@ -301,7 +313,16 @@ export default function DieRoll() {
                   {capitalizeColor(color)}
                   {isEliminated ? ' ✕' : ''}
                 </span>
-                <span className="font-semibold">{player.points}</span>
+                <span className="flex items-center gap-1">
+                  {change > 0 && (
+                    <span className="score-float absolute right-2 -top-1 text-xs font-bold text-amber-400">
+                      +{change}
+                    </span>
+                  )}
+                  <span className={change > 0 ? 'score-pulse font-semibold' : 'font-semibold'}>
+                    {player.points}
+                  </span>
+                </span>
               </li>
             )
           })}

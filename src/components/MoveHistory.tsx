@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { Move, PieceType } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { capitalizeColor, positionToNotation } from '../utils/format'
@@ -11,8 +11,6 @@ const PIECE_NAMES: Record<PieceType, string> = {
   padati: 'Padati',
 }
 
-const MAX_VISIBLE_MOVES = 6
-
 function describeMove(move: Move): string {
   const pieceName = PIECE_NAMES[move.piece.type]
   const from = positionToNotation(move.from.row, move.from.col)
@@ -21,24 +19,33 @@ function describeMove(move: Move): string {
   if (move.usedRajaOverride) {
     if (move.captured) {
       const targetName = PIECE_NAMES[move.captured.type]
-      return `${capitalizeColor(move.player)} Raja captured ${capitalizeColor(move.captured.controlledBy)} ${targetName} at ${to}`
+      return `Raja captured ${capitalizeColor(move.captured.controlledBy)} ${targetName} at ${to}`
     }
-    return `${capitalizeColor(move.player)} Raja moved from ${from} to ${to}`
+    return `Raja moved from ${from} to ${to}`
   }
 
   if (move.captured) {
     const targetName = PIECE_NAMES[move.captured.type]
-    return `${capitalizeColor(move.player)} ${pieceName} captured ${capitalizeColor(move.captured.controlledBy)} ${targetName} at ${to}`
+    return `${pieceName} captured ${capitalizeColor(move.captured.controlledBy)} ${targetName} at ${to}`
   }
 
-  return `${capitalizeColor(move.player)} ${pieceName} moved from ${from} to ${to}`
+  return `${pieceName} moved from ${from} to ${to}`
 }
 
 export default function MoveHistory() {
   const moveHistory = useGameStore((state) => state.gameState.moveHistory)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const prevLengthRef = useRef(moveHistory.length)
+
+  useEffect(() => {
+    if (moveHistory.length > prevLengthRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+    prevLengthRef.current = moveHistory.length
+  }, [moveHistory.length])
 
   const recentMoves = useMemo(() => {
-    return moveHistory.slice(-MAX_VISIBLE_MOVES).reverse()
+    return [...moveHistory].reverse()
   }, [moveHistory])
 
   if (recentMoves.length === 0) {
@@ -57,16 +64,29 @@ export default function MoveHistory() {
       <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-300">
         Move History
       </h3>
-      <ul className="mt-2 space-y-1">
-        {recentMoves.map((move: Move, index: number) => (
-          <li
-            key={`${move.player}-${move.from.row}-${move.from.col}-${move.to.row}-${move.to.col}-${index}`}
-            className="text-sm text-stone-200"
-          >
-            {describeMove(move)}
-          </li>
-        ))}
-      </ul>
+      <div
+        ref={scrollRef}
+        className="mt-2 max-h-[12rem] overflow-y-auto rounded-lg bg-stone-900/40 pr-1 scrollbar-thin scrollbar-thumb-stone-600"
+      >
+        <ul className="space-y-0.5">
+          {recentMoves.map((move: Move, index: number) => (
+            <li
+              key={`${move.player}-${move.from.row}-${move.from.col}-${move.to.row}-${move.to.col}-${index}`}
+              className="flex items-start gap-1.5 rounded px-1.5 py-0.5 text-sm text-stone-200 hover:bg-stone-700/30"
+            >
+              <span className="inline-flex shrink-0 items-center justify-center rounded bg-stone-700/60 px-1 py-0.5 text-xs font-bold text-stone-200">
+                {move.roll}
+              </span>
+              <span className="min-w-0">
+                <span className="font-semibold" style={{ color: `var(--tw-text-opacity)` }}>
+                  {capitalizeColor(move.player)}
+                </span>{' '}
+                {describeMove(move)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }

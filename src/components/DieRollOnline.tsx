@@ -1,65 +1,17 @@
 import { useCallback, useState } from 'react'
 import type { DieFace, PlayerColor } from '../engine/types'
 import { useMultiplayerStore } from '../store/multiplayerStore'
-import { DIE_THEME_COLORS } from '../utils/cosmetics'
 import { capitalizeColor } from '../utils/format'
 import { playDieRollSound, playPassTurnSound } from '../utils/sound'
-
-const ROLL_LABELS_SANSKRIT: Record<number, string> = {
-  2: 'Ashva',
-  3: 'Gaja',
-  4: 'Ratha',
-  5: 'Padati',
-}
-
-const ROLL_LABELS_ENGLISH: Record<number, string> = {
-  2: 'Horse',
-  3: 'Elephant',
-  4: 'Chariot',
-  5: 'Foot Soldier',
-}
-
-const DIE_FACES: DieFace[] = [2, 3, 4, 5]
-const PLAYER_ORDER: PlayerColor[] = ['red', 'blue', 'yellow', 'green']
-const ROLL_ANIMATION_MS = 600
-const ROLL_CYCLE_MS = 100
-
-const DIE_DOT_POSITIONS: Record<DieFace, [number, number][]> = {
-  2: [[0.25, 0.25], [0.75, 0.75]],
-  3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
-  4: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
-  5: [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]],
-}
-
-function DieFaceDisplay({ face, size, theme }: { face: DieFace; size: number; theme: string }) {
-  const dots = DIE_DOT_POSITIONS[face]
-  const dotRadius = size * 0.1
-  const padding = size * 0.15
-  const colors = DIE_THEME_COLORS[theme as keyof typeof DIE_THEME_COLORS] || DIE_THEME_COLORS.classic
-
-  return (
-    <div
-      className="flex items-center justify-center rounded-lg border-2"
-      style={{ width: size, height: size, backgroundColor: colors.bg, borderColor: colors.border }}
-    >
-      <div className="relative" style={{ width: size - padding * 2, height: size - padding * 2 }}>
-        {dots.map(([x, y], i) => (
-          <div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: dotRadius * 2,
-              height: dotRadius * 2,
-              left: `calc(${x * 100}% - ${dotRadius}px)`,
-              top: `calc(${y * 100}% - ${dotRadius}px)`,
-              backgroundColor: colors.dots,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
+import DieFaceDisplay from './DieFaceDisplay'
+import {
+  DIE_FACES,
+  PLAYER_ORDER,
+  ROLL_LABELS_SANSKRIT,
+  ROLL_LABELS_ENGLISH,
+  ROLL_ANIMATION_MS,
+  ROLL_CYCLE_MS,
+} from './dieConstants'
 
 export default function DieRollOnline() {
   const gameState = useMultiplayerStore((s) => s.gameState)
@@ -86,18 +38,29 @@ export default function DieRollOnline() {
     setIsRolling(true)
     playDieRollSound()
     let cycleCount = 0
-    const maxCycles = Math.floor(ROLL_ANIMATION_MS / ROLL_CYCLE_MS)
+    const totalCycles = Math.floor(ROLL_ANIMATION_MS / ROLL_CYCLE_MS)
+    const slowdownStart = Math.floor(totalCycles * 0.65)
 
-    const intervalId = window.setInterval(() => {
-      cycleCount += 1
-      setRollingFace(DIE_FACES[cycleCount % DIE_FACES.length])
+    const runCycle = (interval: number): void => {
+      const id = window.setInterval(() => {
+        cycleCount += 1
+        setRollingFace(DIE_FACES[cycleCount % DIE_FACES.length])
 
-      if (cycleCount >= maxCycles) {
-        window.clearInterval(intervalId)
-        rollOnlineDie()
-        setIsRolling(false)
-      }
-    }, ROLL_CYCLE_MS)
+        if (cycleCount >= totalCycles) {
+          window.clearInterval(id)
+          rollOnlineDie()
+          setIsRolling(false)
+          return
+        }
+
+        if (cycleCount >= slowdownStart && cycleCount === slowdownStart) {
+          window.clearInterval(id)
+          runCycle(ROLL_CYCLE_MS + 50)
+        }
+      }, interval)
+    }
+
+    runCycle(ROLL_CYCLE_MS)
   }, [isRolling, isRollDisabled, rollOnlineDie])
 
   const handlePassTurn = useCallback(() => {

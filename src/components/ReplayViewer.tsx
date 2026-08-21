@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Circle, Group, Image as KonvaImage, Layer, Rect, Stage } from 'react-konva'
 import { PLAYER_COLORS } from '../constants/colors'
 import * as boardEngine from '../engine/board'
@@ -6,6 +6,7 @@ import * as movesEngine from '../engine/moves'
 import type { Board, Move, Piece, PieceType, PlayerColor } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { BOARD_THEME_COLORS } from '../utils/cosmetics'
+import { PIECE_NAMES } from './dieConstants'
 import rajaImg from '../assets/pieces/raja.svg'
 import rathaImg from '../assets/pieces/ratha.svg'
 import gajaImg from '../assets/pieces/gaja.svg'
@@ -148,14 +149,6 @@ function ReplayPieceNode({ piece, centerX, centerY, radius }: { piece: Piece; ce
   )
 }
 
-const PIECE_NAMES: Record<PieceType, string> = {
-  raja: 'Raja',
-  ratha: 'Ratha',
-  gaja: 'Gaja',
-  ashva: 'Ashva',
-  padati: 'Padati',
-}
-
 function formatMove(move: Move): string {
   const pieceName = PIECE_NAMES[move.piece.type]
   if (move.captured) {
@@ -176,6 +169,21 @@ interface ReplayViewerProps {
 export default function ReplayViewer({ moves, onClose }: ReplayViewerProps) {
   const [stepIndex, setStepIndex] = useState(moves.length)
   const boardTheme = useGameStore((state) => state.boardTheme)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [boardSize, setBoardSize] = useState(400)
+
+  const measuredRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width
+        const boardWidth = Math.min(width, 400)
+        setBoardSize(boardWidth)
+      }
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
 
   const boardAtStep = useMemo(() => {
     let board = boardEngine.createInitialBoard()
@@ -220,10 +228,10 @@ export default function ReplayViewer({ moves, onClose }: ReplayViewerProps) {
 
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 p-4">
-      <div className="flex w-full max-w-4xl flex-col gap-4 lg:flex-row">
-        <div className="flex flex-col items-center gap-3">
+      <div className="flex w-full max-w-4xl flex-col gap-4 lg:flex-row" ref={containerRef}>
+        <div className="flex flex-col items-center gap-3" ref={measuredRef}>
           <h2 className="text-lg font-bold text-stone-100">Game Replay</h2>
-          <ReplayBoard board={boardAtStep} highlightMove={currentMove} size={400} boardTheme={boardTheme} />
+          <ReplayBoard board={boardAtStep} highlightMove={currentMove} size={boardSize} boardTheme={boardTheme} />
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -263,7 +271,7 @@ export default function ReplayViewer({ moves, onClose }: ReplayViewerProps) {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 overflow-hidden">
+        <div className="flex flex-1 flex-col gap-2 overflow-hidden min-h-0">
           <h3 className="text-sm font-semibold uppercase text-stone-300">Moves</h3>
           <div className="flex-1 overflow-y-auto rounded-lg bg-stone-800/60 p-2">
             {moves.map((move, i) => (
@@ -278,6 +286,9 @@ export default function ReplayViewer({ moves, onClose }: ReplayViewerProps) {
                 }`}
               >
                 <span className="font-mono text-xs text-stone-500">{i + 1}.</span>{' '}
+                <span className="inline-block min-w-[1.5rem] text-center rounded bg-stone-700/60 px-1 py-0.5 text-xs font-semibold text-stone-200 mr-1">
+                  {move.roll}
+                </span>
                 {formatMove(move)}
                 {move.usedRajaOverride ? ' (override)' : ''}
               </button>
