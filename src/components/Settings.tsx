@@ -267,51 +267,29 @@ interface ThemeSelectorProps<T extends string> {
 }
 
 function ThemeSelector<T extends string>({ title, options, labels, colors, selected, onSelect }: ThemeSelectorProps<T>) {
-  const cosmetics = useMemo(() => getCosmetics(), [])
-
-  const isUnlocked = (theme: T): boolean => {
-    if (title === 'Board Style') {
-      return (cosmetics.unlockedBoardThemes as string[]).includes(theme)
-    }
-    if (title === 'Piece Style') {
-      return (cosmetics.unlockedPieceThemes as string[]).includes(theme)
-    }
-    if (title === 'Die Style') {
-      return (cosmetics.unlockedDieThemes as string[]).includes(theme)
-    }
-    return true
-  }
-
   return (
     <div>
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-300">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-300">{title}</h3>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((theme) => {
-          const unlocked = isUnlocked(theme)
           return (
             <button
               key={theme}
               type="button"
-              onClick={() => unlocked && onSelect(theme)}
-              disabled={!unlocked}
-              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              onClick={() => onSelect(theme)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 selected === theme
-                  ? 'bg-amber-500 text-stone-950'
-                  : unlocked
-                    ? 'bg-stone-700 text-stone-100 hover:bg-stone-600'
-                    : 'cursor-not-allowed bg-stone-800 text-stone-500'
+                  ? 'bg-amber-500 text-stone-950 font-bold shadow'
+                  : 'bg-stone-800 text-stone-200 hover:bg-stone-700 border border-stone-700'
               }`}
             >
               {colors && colors[theme] ? (
                 <span
-                  className="inline-block h-3 w-3 rounded-full border"
+                  className="inline-block h-2.5 w-2.5 rounded-full border border-stone-500"
                   style={{ backgroundColor: colors[theme].bg ?? colors[theme].light ?? '#888', borderColor: colors[theme].border ?? colors[theme].dark ?? '#666' }}
                 />
               ) : null}
               {labels[theme]}
-              {!unlocked ? (
-                <span className="text-xs text-stone-400">🔒</span>
-              ) : null}
             </button>
           )
         })}

@@ -76,8 +76,12 @@ export interface GameStoreState {
   boardTheme: BoardTheme
   pieceTheme: PieceTheme
   dieTheme: DieTheme
+  isRolling: boolean
+  rollingFace: DieFace
   initGame: (gameMode?: GameMode) => void
   setBotDifficulty: (difficulty: Difficulty) => void
+  setHumanPlayer: (color: PlayerColor) => void
+  setIsRolling: (isRolling: boolean, face?: DieFace) => void
   setHintMove: (move: CandidateMove | null) => void
   setAutoDieRoll: (enabled: boolean) => void
   setSanskritNames: (enabled: boolean) => void
@@ -114,6 +118,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   boardTheme: 'classic',
   pieceTheme: 'classic',
   dieTheme: 'classic',
+  isRolling: false,
+  rollingFace: 2,
 
   initGame: (gameMode: GameMode = 'freeforall'): void => {
     const state = get()
@@ -135,6 +141,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   setBotDifficulty: (difficulty: Difficulty): void => {
     set({ botDifficulty: difficulty })
+  },
+
+  setHumanPlayer: (color: PlayerColor): void => {
+    set({ humanPlayer: color })
+  },
+
+  setIsRolling: (isRolling: boolean, face?: DieFace): void => {
+    set((prev) => ({
+      isRolling,
+      rollingFace: face !== undefined ? face : prev.rollingFace,
+    }))
   },
 
   setHintMove: (move: CandidateMove | null): void => {

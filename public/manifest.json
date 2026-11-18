@@ -1,0 +1,26 @@
+{
+  "name": "Pasa — The Ancient Four Kings",
+  "short_name": "Pasa",
+  "description": "The ancient 4-player Indian chess ancestor. Four armies, one die, shifting power.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0a09",
+  "theme_color": "#1c1917",
+  "categories": ["games", "strategy", "board"],
+  "icons": [
+    {
+      "src": "/pasa-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/useAuth'
 
 interface AuthScreenProps {
   onAuthenticated: () => void
+  onBack?: () => void
 }
 
-export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
+export default function AuthScreen({ onAuthenticated, onBack }: AuthScreenProps) {
   const { signIn, signUp, signInWithGoogle, configured } = useAuth()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
@@ -50,6 +51,15 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           <p className="mt-2 text-xs text-stone-500">
             See supabase/migrations/001_initial_schema.sql for the database setup.
           </p>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mt-6 w-full rounded-md border border-stone-500/50 bg-stone-800 px-4 py-2 text-sm font-medium text-stone-200 transition hover:bg-stone-700"
+            >
+              ← Back to Main Menu
+            </button>
+          )}
         </div>
       </div>
     )
@@ -58,9 +68,20 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-stone-900 p-4">
       <div className="w-full max-w-sm rounded-xl border border-stone-500/50 bg-stone-900/95 p-6 shadow-2xl">
-        <h2 className="text-center text-xl font-bold text-stone-100">
-          {mode === 'signin' ? 'Sign In' : 'Create Account'}
-        </h2>
+        <div className="flex items-center justify-between pb-2 border-b border-stone-700/50">
+          <h2 className="text-xl font-bold text-stone-100">
+            {mode === 'signin' ? 'Sign In' : 'Create Account'}
+          </h2>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-xs text-stone-400 hover:text-stone-200 transition"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-3">
           <div>

@@ -33,14 +33,15 @@ export default function DieRoll() {
   const moveTimeLeft = useGameStore((state) => state.moveTimeLeft)
   const timeLeft = useGameStore((state) => state.timeLeft)
   const dieTheme = useGameStore((state) => state.dieTheme)
+  const isRolling = useGameStore((state) => state.isRolling)
+  const rollingFace = useGameStore((state) => state.rollingFace)
+  const setIsRolling = useGameStore((state) => state.setIsRolling)
   const rollDie = useGameStore((state) => state.rollDie)
   const passTurn = useGameStore((state) => state.passTurn)
   const setHintMove = useGameStore((state) => state.setHintMove)
 
   const [showForfeitMessage, setShowForfeitMessage] = useState(false)
   const [localHintMove, setLocalHintMove] = useState<CandidateMove | null>(null)
-  const [isRolling, setIsRolling] = useState(false)
-  const [rollingFace, setRollingFace] = useState<DieFace>(2)
   const [lastPointsChange, setLastPointsChange] = useState<Record<PlayerColor, number>>({
     red: 0, blue: 0, yellow: 0, green: 0,
   })
@@ -110,7 +111,7 @@ export default function DieRoll() {
       return
     }
 
-    setIsRolling(true)
+    setIsRolling(true, 2)
     playDieRollSound()
 
     let cycleCount = 0
@@ -119,7 +120,7 @@ export default function DieRoll() {
 
     cycleRef.current = window.setInterval(() => {
       cycleCount += 1
-      setRollingFace(DIE_FACES[cycleCount % DIE_FACES.length])
+      setIsRolling(true, DIE_FACES[cycleCount % DIE_FACES.length])
 
       const isSlowPhase = cycleCount >= slowdownStart
       const intervalMs = isSlowPhase ? ROLL_CYCLE_MS + 50 : ROLL_CYCLE_MS
@@ -136,8 +137,10 @@ export default function DieRoll() {
         const nextGameState = useGameStore.getState().gameState
         const rolledValue = nextGameState.currentRoll
         if (rolledValue !== null) {
-          setRollingFace(rolledValue)
+          setIsRolling(false, rolledValue)
           playDieResultSound()
+        } else {
+          setIsRolling(false)
         }
 
         const didForfeitTurn =
@@ -148,8 +151,6 @@ export default function DieRoll() {
         if (didForfeitTurn) {
           setShowForfeitMessage(true)
         }
-
-        setIsRolling(false)
         return
       }
 
@@ -157,7 +158,7 @@ export default function DieRoll() {
         window.clearInterval(cycleRef.current)
         cycleRef.current = window.setInterval(() => {
           cycleCount += 1
-          setRollingFace(DIE_FACES[cycleCount % DIE_FACES.length])
+          setIsRolling(true, DIE_FACES[cycleCount % DIE_FACES.length])
 
           if (cycleCount >= totalCycles) {
             if (cycleRef.current !== null) {
@@ -171,7 +172,10 @@ export default function DieRoll() {
             const nextGameState = useGameStore.getState().gameState
             const rolledValue = nextGameState.currentRoll
             if (rolledValue !== null) {
-              setRollingFace(rolledValue)
+              setIsRolling(false, rolledValue)
+              playDieResultSound()
+            } else {
+              setIsRolling(false)
             }
 
             const didForfeitTurn =
@@ -182,13 +186,11 @@ export default function DieRoll() {
             if (didForfeitTurn) {
               setShowForfeitMessage(true)
             }
-
-            setIsRolling(false)
           }
         }, intervalMs)
       }
     }, ROLL_CYCLE_MS)
-  }, [currentTurn, isRolling, rollDie])
+  }, [currentTurn, isRolling, rollDie, setIsRolling])
 
   const isHumanTurn = currentTurn === humanPlayer
   const isRollDisabled = phase !== 'playing' || currentRoll !== null || !isHumanTurn
@@ -205,36 +207,53 @@ export default function DieRoll() {
   const rollLabels = sanskritNames ? ROLL_LABELS_SANSKRIT : ROLL_LABELS_ENGLISH
 
   return (
-    <aside className="rounded-xl border border-stone-600/60 bg-stone-800/70 p-4 text-stone-100 shadow-lg backdrop-blur-sm">
-      <h2 className="text-lg font-semibold">Turn: {capitalizeColor(currentTurn)}</h2>
+    <aside className="rounded-2xl border border-stone-700/60 bg-stone-900/80 p-4 text-stone-100 shadow-xl backdrop-blur-md">
+      <div className="flex items-center justify-between border-b border-stone-800 pb-2">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-stone-300">
+          Battle Command
+        </h2>
+        <span
+          className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white shadow-sm"
+          style={{ backgroundColor: currentTurn === 'red' ? '#c0392b' : currentTurn === 'blue' ? '#2980b9' : currentTurn === 'yellow' ? '#f39c12' : '#27ae60' }}
+        >
+          {capitalizeColor(currentTurn)}
+        </span>
+      </div>
 
       {isRolling ? (
-        <div className="mt-3 flex flex-col items-center gap-2">
+        <div className="mt-4 flex flex-col items-center gap-2 animate-bounce">
           <DieFaceDisplay face={rollingFace} size={64} theme={dieTheme} />
-          <span className="text-sm text-amber-300">Rolling...</span>
-        </div>
-      ) : isBotTurn ? (
-        <div className="mt-3 flex flex-col items-center gap-2">
-          <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-stone-500 bg-stone-700">
-            <span className="text-lg font-bold text-stone-300">...</span>
-          </div>
-          <span className="text-sm text-stone-400">{capitalizeColor(currentTurn)} is thinking...</span>
+          <span className="text-sm font-bold text-amber-300">
+            {isBotTurn ? `${capitalizeColor(currentTurn)} Bot is rolling...` : 'Rolling Pasa...'}
+          </span>
         </div>
       ) : currentRoll !== null ? (
-        <div className="mt-3 flex flex-col items-center gap-2">
-          <DieFaceDisplay face={currentRoll} size={64} theme={dieTheme} />
-          <span className="text-sm font-medium text-amber-200">
-            Rolled {currentRoll}: {rollLabels[currentRoll]}
+        <div className="mt-4 flex flex-col items-center gap-2 animate-fade-in">
+          <DieFaceDisplay face={currentRoll} size={68} theme={dieTheme} />
+          <span className="text-sm font-bold text-amber-300">
+            {isBotTurn
+              ? `${capitalizeColor(currentTurn)} rolled ${currentRoll}: ${rollLabels[currentRoll]}`
+              : `Rolled ${currentRoll}: ${rollLabels[currentRoll]}`}
           </span>
+          {isBotTurn && (
+            <span className="text-xs text-stone-400 animate-pulse">Choosing target square...</span>
+          )}
+        </div>
+      ) : isBotTurn ? (
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-stone-700 bg-stone-800/80 shadow-inner">
+            <span className="text-lg font-bold text-amber-400 animate-pulse">🎲</span>
+          </div>
+          <span className="text-xs font-medium text-stone-400">{capitalizeColor(currentTurn)} Bot preparing roll...</span>
         </div>
       ) : (
         <button
           type="button"
           onClick={handleRollDie}
           disabled={isRollDisabled}
-          className="mt-3 w-full rounded-md bg-amber-600 px-4 py-3 text-lg font-semibold text-stone-950 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3.5 text-base font-extrabold text-stone-950 shadow-lg hover:from-amber-400 hover:to-amber-500 active:scale-95 transition disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Roll Die
+          🎲 Roll Pasa
         </button>
       )}
 

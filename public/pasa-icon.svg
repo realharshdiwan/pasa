@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#292524" />
+      <stop offset="100%" stop-color="#0c0a09" />
+    </radialGradient>
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="dieGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="60%" stop-color="#fde68a" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.8" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="url(#goldBorder)" stroke-width="8" opacity="0.85" />
+
+  <!-- Four Corner Jewels (Red, Blue, Yellow, Green) -->
+  <circle cx="80" cy="80" r="16" fill="#27ae60" stroke="#f59e0b" stroke-width="4" filter="url(#glow)" />
+  <circle cx="432" cy="80" r="16" fill="#f39c12" stroke="#f59e0b" stroke-width="4" filter="url(#glow)" />
+  <circle cx="80" cy="432" r="16" fill="#c0392b" stroke="#f59e0b" stroke-width="4" filter="url(#glow)" />
+  <circle cx="432" cy="432" r="16" fill="#2980b9" stroke="#f59e0b" stroke-width="4" filter="url(#glow)" />
+
+  <!-- Center Die (Pasa) Isometric Block -->
+  <g filter="url(#shadow)">
+    <!-- Top Face (Diamond) -->
+    <path d="M256 120 L370 185 L256 250 L142 185 Z" fill="#fffbeb" />
+    <!-- Left Face -->
+    <path d="M142 185 L256 250 L256 375 L142 310 Z" fill="#d97706" />
+    <!-- Right Face -->
+    <path d="M256 250 L370 185 L370 310 L256 375 Z" fill="#b45309" />
+    
+    <!-- Die Dots / Markings -->
+    <!-- Top Face Pip (1 big center pip / Ashva) -->
+    <circle cx="256" cy="185" r="14" fill="#92400e" opacity="0.9" />
+    
+    <!-- Left Face Pips (3 pips / Gaja) -->
+    <circle cx="180" cy="235" r="10" fill="#fef3c7" />
+    <circle cx="200" cy="275" r="10" fill="#fef3c7" />
+    <circle cx="220" cy="315" r="10" fill="#fef3c7" />
+    
+    <!-- Right Face Pips (4 pips / Ratha) -->
+    <circle cx="295" cy="235" r="9" fill="#fde68a" />
+    <circle cx="335" cy="215" r="9" fill="#fde68a" />
+    <circle cx="295" cy="315" r="9" fill="#fde68a" />
+    <circle cx="335" cy="295" r="9" fill="#fde68a" />
+  </g>
+
+  <!-- Title Text -->
+  <text x="256" y="445" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="900" fill="#f59e0b" text-anchor="middle" letter-spacing="8">PASA</text>
+</svg>
