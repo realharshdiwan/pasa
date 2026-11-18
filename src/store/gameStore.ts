@@ -8,6 +8,7 @@ import * as movesEngine from '../engine/moves'
 import * as scoringEngine from '../engine/scoring'
 import type { CandidateMove } from '../engine/moves'
 import type {
+  DieFace,
   GameMode,
   GameState,
   Move,

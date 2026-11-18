@@ -359,8 +359,7 @@ interface PieceNodeProps {
   imagesReady: boolean
 }
 
-function PieceNode({ piece, centerX, centerY, radius, opacity, theme, imagesReady }: PieceNodeProps) {
-  const s = radius * 0.7
+function PieceNode({ piece, centerX, centerY, radius, opacity, theme: _theme, imagesReady }: PieceNodeProps) {
   const img = imagesReady ? loadPieceImage(piece.type) : null
 
   return (

@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { Difficulty } from '../engine/ai'
 import type { GameMode } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import type { TimerMode } from '../store/gameStore'
-import { BOARD_THEME_LABELS, BOARD_THEME_COLORS, DIE_THEME_LABELS, DIE_THEME_COLORS, PIECE_THEME_LABELS, getCosmetics } from '../utils/cosmetics'
+import { BOARD_THEME_LABELS, BOARD_THEME_COLORS, DIE_THEME_LABELS, DIE_THEME_COLORS, PIECE_THEME_LABELS } from '../utils/cosmetics'
 import { getMuted, setMuted } from '../utils/sound'
 
 interface SettingsProps {

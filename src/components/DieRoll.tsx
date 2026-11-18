@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHintMove } from '../engine/ai'
 import type { CandidateMove } from '../engine/moves'
-import type { DieFace, PlayerColor } from '../engine/types'
+import type { PlayerColor } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { capitalizeColor } from '../utils/format'
 import { playDieRollSound, playDieResultSound, playPassTurnSound } from '../utils/sound'
