@@ -87,10 +87,19 @@ function LocalGame({ onBack }: { onBack: () => void }) {
       if (!prevEliminatedRef.current.has(color) && players[color].placement !== null) {
         if (color !== humanPlayer) {
           playEliminationSound()
-          setEliminationSplash({ color, placement: players[color].placement! })
+          const placement = players[color].placement!
           elimTimerRef.current = window.setTimeout(() => {
+            setEliminationSplash({ color, placement })
+          }, 0)
+          const hideTimer = window.setTimeout(() => {
             setEliminationSplash(null)
           }, 2200)
+          return () => {
+            window.clearTimeout(hideTimer)
+            if (elimTimerRef.current !== null) {
+              window.clearTimeout(elimTimerRef.current)
+            }
+          }
         }
       }
     }

@@ -86,7 +86,9 @@ export default function DieRoll() {
       }
     }
     if (hasChange) {
-      setLastPointsChange(changes)
+      const showTimer = window.setTimeout(() => {
+        setLastPointsChange(changes)
+      }, 0)
       const timer = window.setTimeout(() => {
         setLastPointsChange({ red: 0, blue: 0, yellow: 0, green: 0 })
       }, 800)
@@ -96,7 +98,10 @@ export default function DieRoll() {
         yellow: players.yellow.points,
         green: players.green.points,
       }
-      return () => window.clearTimeout(timer)
+      return () => {
+        window.clearTimeout(showTimer)
+        window.clearTimeout(timer)
+      }
     }
     prevPointsRef.current = {
       red: players.red.points,

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 interface MainMenuProps {
   onSelectLocal: () => void
   onSelectOnline: () => void
@@ -8,13 +13,13 @@ interface MainMenuProps {
 
 export default function MainMenu({ onSelectLocal, onSelectOnline, onlineEnabled }: MainMenuProps) {
   const [visible, setVisible] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true))
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e)
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => {

@@ -83,7 +83,6 @@ export default function Board() {
   const hintMove = useGameStore((state) => state.hintMove)
   const lastMove = useGameStore((state) => state.lastMove)
   const boardTheme = useGameStore((state) => state.boardTheme)
-  const pieceTheme = useGameStore((state) => state.pieceTheme)
   const selectSquare = useGameStore((state) => state.selectSquare)
   const applyMove = useGameStore((state) => state.applyMove)
 
@@ -246,7 +245,6 @@ export default function Board() {
             centerY={toDisplayRow(row) * squareSize + squareSize / 2}
             radius={pieceRadius}
             opacity={shouldDimPiece ? 0.35 : 1}
-            theme={pieceTheme}
             imagesReady={imagesReady}
           />,
         )
@@ -254,7 +252,7 @@ export default function Board() {
     }
 
     return nodes
-  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, pieceTheme, imagesReady])
+  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, imagesReady])
 
   const squareNodes = useMemo(() => {
     const nodes: ReactElement[] = []
@@ -355,11 +353,10 @@ interface PieceNodeProps {
   centerY: number
   radius: number
   opacity: number
-  theme: 'classic' | 'geometric' | 'minimal'
   imagesReady: boolean
 }
 
-function PieceNode({ piece, centerX, centerY, radius, opacity, theme: _theme, imagesReady }: PieceNodeProps) {
+function PieceNode({ piece, centerX, centerY, radius, opacity, imagesReady }: PieceNodeProps) {
   const img = imagesReady ? loadPieceImage(piece.type) : null
 
   return (

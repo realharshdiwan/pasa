@@ -58,22 +58,25 @@ function computeStats(moveHistory: Move[]) {
   }
 }
 
-function Confetti() {
-  const pieces = useMemo(() => {
-    return Array.from({ length: 30 }, (_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      delay: `${Math.random() * 1.5}s`,
-      duration: `${2 + Math.random() * 2}s`,
-      rotation: Math.random() * 360,
-      size: 6 + Math.random() * 6,
-    }))
-  }, [])
+const CONFETTI_PIECES = Array.from({ length: 30 }, (_, i) => {
+  const pseudoRand1 = ((i * 9301 + 49297) % 233280) / 233280
+  const pseudoRand2 = ((i * 12345 + 67891) % 233280) / 233280
+  return {
+    id: i,
+    left: `${(i * 3.33 + pseudoRand1 * 5) % 100}%`,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    delay: `${(pseudoRand1 * 1.5).toFixed(2)}s`,
+    duration: `${(2 + pseudoRand2 * 2).toFixed(2)}s`,
+    rotation: Math.floor(pseudoRand1 * 360),
+    size: Math.floor(6 + pseudoRand2 * 6),
+    isRound: i % 2 === 0,
+  }
+})
 
+function Confetti() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden z-30" aria-hidden="true">
-      {pieces.map((p) => (
+      {CONFETTI_PIECES.map((p) => (
         <div
           key={p.id}
           className="confetti-piece"
@@ -84,7 +87,7 @@ function Confetti() {
             backgroundColor: p.color,
             animationDelay: p.delay,
             animationDuration: p.duration,
-            borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+            borderRadius: p.isRound ? '50%' : '2px',
             transform: `rotate(${p.rotation}deg)`,
           }}
         />
