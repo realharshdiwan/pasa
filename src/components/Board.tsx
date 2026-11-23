@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import { Circle, Group, Image as KonvaImage, Layer, Rect, Stage } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage } from 'react-konva'
 import Konva from 'konva'
 import { PLAYER_COLORS } from '../constants/colors'
 import * as movesEngine from '../engine/moves'
@@ -49,7 +49,6 @@ ensurePieceImagesLoaded()
 
 const BOARD_DIMENSION = 8
 const SELECTED_HIGHLIGHT = 'rgba(255, 255, 0, 0.4)'
-const LEGAL_MOVE_HIGHLIGHT = 'rgba(0, 200, 0, 0.35)'
 const HINT_FROM_HIGHLIGHT = 'rgba(0, 100, 255, 0.4)'
 const HINT_TO_HIGHLIGHT = 'rgba(0, 100, 255, 0.25)'
 const ANIMATION_DURATION = 0.2
@@ -237,6 +236,8 @@ export default function Board() {
           !isRajaOverridePiece &&
           !canMoveByRoll
 
+        const isSelectedPiece = arePositionsEqual(selectedSquare, { row, col })
+
         nodes.push(
           <PieceNode
             key={piece.id}
@@ -245,6 +246,7 @@ export default function Board() {
             centerY={toDisplayRow(row) * squareSize + squareSize / 2}
             radius={pieceRadius}
             opacity={shouldDimPiece ? 0.35 : 1}
+            isLifted={isSelectedPiece}
             imagesReady={imagesReady}
           />,
         )
@@ -252,7 +254,7 @@ export default function Board() {
     }
 
     return nodes
-  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, imagesReady])
+  }, [board, currentRoll, currentTurn, gameMode, pieceRadius, squareSize, imagesReady, selectedSquare])
 
   const squareNodes = useMemo(() => {
     const nodes: ReactElement[] = []
@@ -267,6 +269,8 @@ export default function Board() {
         const legalMove = legalMoveMap.get(positionKey(position))
         const isHintFrom = arePositionsEqual(hintMove?.from ?? null, position)
         const isHintTo = arePositionsEqual(hintMove?.to ?? null, position)
+        const isLastMoveFrom = lastMove ? arePositionsEqual(lastMove.from, position) : false
+        const isLastMoveTo = lastMove ? arePositionsEqual(lastMove.to, position) : false
 
         nodes.push(
           <Group key={`square-${row}-${col}`}>
@@ -279,6 +283,31 @@ export default function Board() {
               onClick={() => handleSquareClick(position)}
               onTap={() => handleSquareClick(position)}
             />
+            {/* Last move origin and target highlights */}
+            {isLastMoveFrom ? (
+              <Rect
+                x={col * squareSize}
+                y={y}
+                width={squareSize}
+                height={squareSize}
+                fill="rgba(245, 158, 11, 0.15)"
+                stroke="rgba(245, 158, 11, 0.35)"
+                strokeWidth={1}
+                listening={false}
+              />
+            ) : null}
+            {isLastMoveTo ? (
+              <Rect
+                x={col * squareSize}
+                y={y}
+                width={squareSize}
+                height={squareSize}
+                fill="rgba(245, 158, 11, 0.28)"
+                stroke="rgba(251, 191, 36, 0.75)"
+                strokeWidth={1.5}
+                listening={false}
+              />
+            ) : null}
             {isSelected ? (
               <Rect
                 x={col * squareSize}
@@ -289,15 +318,31 @@ export default function Board() {
                 listening={false}
               />
             ) : null}
+            {/* Tactical Legal Move Indicators */}
             {legalMove ? (
-              <Rect
-                x={col * squareSize}
-                y={y}
-                width={squareSize}
-                height={squareSize}
-                fill={LEGAL_MOVE_HIGHLIGHT}
-                listening={false}
-              />
+              legalMove.captured ? (
+                // Combat capture ring
+                <Circle
+                  x={col * squareSize + squareSize / 2}
+                  y={y + squareSize / 2}
+                  radius={squareSize * 0.42}
+                  stroke="rgba(239, 68, 68, 0.85)"
+                  strokeWidth={Math.max(2, squareSize * 0.06)}
+                  dash={[5, 3]}
+                  listening={false}
+                />
+              ) : (
+                // Move destination target dot
+                <Circle
+                  x={col * squareSize + squareSize / 2}
+                  y={y + squareSize / 2}
+                  radius={squareSize * 0.16}
+                  fill="rgba(251, 191, 36, 0.6)"
+                  stroke="rgba(255, 255, 255, 0.7)"
+                  strokeWidth={1}
+                  listening={false}
+                />
+              )
             ) : null}
             {isHintFrom ? (
               <Rect
@@ -324,8 +369,28 @@ export default function Board() {
       }
     }
 
+    {/* Last Move Trail Vector Line */}
+    if (lastMove) {
+      const fromX = lastMove.from.col * squareSize + squareSize / 2
+      const fromY = toDisplayRow(lastMove.from.row) * squareSize + squareSize / 2
+      const toX = lastMove.to.col * squareSize + squareSize / 2
+      const toY = toDisplayRow(lastMove.to.row) * squareSize + squareSize / 2
+
+      nodes.push(
+        <Line
+          key="last-move-trail-line"
+          points={[fromX, fromY, toX, toY]}
+          stroke="rgba(251, 191, 36, 0.55)"
+          strokeWidth={Math.max(2, squareSize * 0.04)}
+          dash={[6, 4]}
+          lineCap="round"
+          listening={false}
+        />,
+      )
+    }
+
     return nodes
-  }, [handleSquareClick, hintMove, legalMoveMap, selectedSquare, squareSize, boardTheme])
+  }, [handleSquareClick, hintMove, legalMoveMap, selectedSquare, squareSize, boardTheme, lastMove])
 
   return (
     <div
@@ -353,11 +418,14 @@ interface PieceNodeProps {
   centerY: number
   radius: number
   opacity: number
+  isLifted?: boolean
   imagesReady: boolean
 }
 
-function PieceNode({ piece, centerX, centerY, radius, opacity, imagesReady }: PieceNodeProps) {
+function PieceNode({ piece, centerX, centerY, radius, opacity, isLifted, imagesReady }: PieceNodeProps) {
   const img = imagesReady ? loadPieceImage(piece.type) : null
+  const scale = isLifted ? 1.14 : 1.0
+  const yOffset = isLifted ? -radius * 0.14 : 0
 
   return (
     <Group
@@ -368,29 +436,45 @@ function PieceNode({ piece, centerX, centerY, radius, opacity, imagesReady }: Pi
       listening={false}
       opacity={opacity}
     >
+      {/* 3D Physical Drop Shadow when piece is lifted */}
+      {isLifted && (
+        <Circle
+          radius={radius * 1.08}
+          y={radius * 0.22}
+          fill="rgba(0, 0, 0, 0.45)"
+          listening={false}
+        />
+      )}
+
+      {/* Main piece token */}
       <Circle
-        radius={radius}
+        y={yOffset}
+        radius={radius * scale}
         fill={PLAYER_COLORS[piece.controlledBy]}
-        stroke="rgba(0, 0, 0, 0.35)"
-        strokeWidth={Math.max(1, radius * 0.08)}
+        stroke={isLifted ? '#fbbf24' : 'rgba(0, 0, 0, 0.35)'}
+        strokeWidth={isLifted ? Math.max(2.5, radius * 0.12) : Math.max(1, radius * 0.08)}
       />
+
+      {/* Controller badge if army is inherited */}
       {piece.controlledBy !== piece.color ? (
         <Circle
-          x={radius * 0.45}
-          y={-radius * 0.45}
-          radius={radius * 0.28}
+          x={radius * 0.45 * scale}
+          y={(-radius * 0.45 + yOffset) * scale}
+          radius={radius * 0.28 * scale}
           fill={PLAYER_COLORS[piece.color]}
           stroke="rgba(255, 255, 255, 0.85)"
           strokeWidth={Math.max(1, radius * 0.05)}
         />
       ) : null}
+
+      {/* Crisp Vector Piece SVG */}
       {img ? (
         <KonvaImage
           image={img}
-          x={-radius}
-          y={-radius}
-          width={radius * 2}
-          height={radius * 2}
+          x={-radius * scale}
+          y={(-radius + yOffset) * scale}
+          width={radius * 2 * scale}
+          height={radius * 2 * scale}
         />
       ) : null}
     </Group>

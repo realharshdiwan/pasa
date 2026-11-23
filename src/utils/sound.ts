@@ -72,12 +72,22 @@ export function playCaptureSound(): void {
   playTone(250, 0.15, 'square', 0.08, 0.05)
 }
 
+export function playElephantStompSound(): void {
+  playNoise(0.2, 0.15)
+  playTone(85, 0.35, 'triangle', 0.22)
+  playTone(55, 0.45, 'sine', 0.28, 0.04)
+  playTone(40, 0.55, 'sine', 0.2, 0.1)
+}
+
 export function playRajaCaptureSound(): void {
-  playNoise(0.15, 0.1)
-  playTone(200, 0.35, 'sawtooth', 0.14)
-  playTone(150, 0.4, 'sawtooth', 0.1, 0.08)
-  playTone(100, 0.5, 'sawtooth', 0.08, 0.2)
-  playTone(80, 0.6, 'sawtooth', 0.06, 0.35)
+  playNoise(0.18, 0.12)
+  // Royal trumpet/horn fanfare: D4 -> F#4 -> A4 -> D5 -> F#5
+  const fanfare = [293.66, 369.99, 440.0, 587.33, 739.99]
+  fanfare.forEach((freq, idx) => {
+    playTone(freq, 0.25, 'sawtooth', 0.12, idx * 0.09)
+    playTone(freq * 0.5, 0.3, 'triangle', 0.1, idx * 0.09)
+  })
+  playTone(146.83, 0.6, 'sawtooth', 0.15, 0.45)
 }
 
 export function playDieRollSound(): void {

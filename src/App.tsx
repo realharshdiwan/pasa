@@ -15,7 +15,13 @@ import Settings from './components/Settings'
 import Tutorial from './components/Tutorial'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/useAuth'
-import { playEliminationSound, playDieRollSound, playDieResultSound } from './utils/sound'
+import {
+  playEliminationSound,
+  playDieRollSound,
+  playDieResultSound,
+  playElephantStompSound,
+  playRajaCaptureSound,
+} from './utils/sound'
 import type { DieFace, GameMode, PlayerColor } from './engine/types'
 import { useGameStore } from './store/gameStore'
 import { useMultiplayerStore } from './store/multiplayerStore'
@@ -128,6 +134,7 @@ function LocalGame({ onBack }: { onBack: () => void }) {
     const lastEntry = moveHistory[moveHistory.length - 1]
 
     if (lastEntry.captured?.type === 'raja') {
+      playRajaCaptureSound()
       requestAnimationFrame(() => {
         setShowRajaFlash(true)
         setShaking(true)
@@ -135,10 +142,18 @@ function LocalGame({ onBack }: { onBack: () => void }) {
 
       flashTimerRef.current = window.setTimeout(() => {
         setShowRajaFlash(false)
-      }, 600)
+      }, 1200)
       shakeTimerRef.current = window.setTimeout(() => {
         setShaking(false)
-      }, 400)
+      }, 500)
+    } else if (lastEntry.piece.type === 'gaja') {
+      playElephantStompSound()
+      requestAnimationFrame(() => {
+        setShaking(true)
+      })
+      shakeTimerRef.current = window.setTimeout(() => {
+        setShaking(false)
+      }, 380)
     }
 
     return () => {
@@ -270,11 +285,19 @@ function LocalGame({ onBack }: { onBack: () => void }) {
         />
 
         <div className="flex flex-1 flex-col items-center lg:items-start gap-4 lg:flex-row">
-          <section className={`relative flex flex-1 w-full items-center justify-center rounded-xl border border-stone-700/70 bg-stone-800/40 p-2 sm:p-3 ${shaking ? 'screen-shake' : ''}`}>
+          <section className={`relative flex flex-1 w-full items-center justify-center rounded-xl border border-stone-700/70 bg-stone-800/40 p-2 sm:p-3 ${shaking ? 'screen-shake elephant-rumble' : ''}`}>
             <div className="relative aspect-square w-full max-w-[min(92vw,50vh)] lg:max-w-[74vh]">
               <Board />
               {showRajaFlash ? (
-                <div className="raja-flash pointer-events-none absolute inset-0 z-10 rounded-xl bg-red-600/60" />
+                <div className="crown-burst pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/40 via-red-600/35 to-amber-600/50 backdrop-blur-[2px]">
+                  <span className="text-5xl sm:text-6xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] animate-bounce">👑</span>
+                  <span className="mt-2 text-xs sm:text-sm font-black uppercase tracking-widest text-amber-200 drop-shadow">
+                    Raja Conquered!
+                  </span>
+                  <span className="text-[10px] font-bold text-white/90">
+                    Army Commanded
+                  </span>
+                </div>
               ) : null}
               {eliminationSplash ? (
                 <div className="elimination-splash pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
