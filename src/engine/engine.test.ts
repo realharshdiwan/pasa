@@ -8,6 +8,13 @@ import {
 } from './board'
 import { getBotMove, getHintMove } from './ai'
 import { getPieceTypeForDieFace, rollDie } from './die'
+import { createMulberry32, rollDieWithSeed } from './rng'
+import {
+  checkGracePeriodExpirations,
+  createInstantDemoRoom,
+  handleDisconnect,
+  processIntent,
+} from './room'
 import {
   captureRajaAndTransferArmies,
   checkLoneRaja,
@@ -434,5 +441,106 @@ describe('ai move selection', () => {
     expect(getBotMove(emptyBoardState, 'medium')).toBeNull()
     expect(getBotMove(emptyBoardState, 'hard')).toBeNull()
     expect(getHintMove(emptyBoardState)).toBeNull()
+  })
+})
+
+describe('seeded deterministic PRNG (Mulberry32)', () => {
+  it('generates identical float sequences for identical seeds', () => {
+    const rng1 = createMulberry32(123456789)
+    const rng2 = createMulberry32(123456789)
+
+    const seq1 = Array.from({ length: 10 }, () => rng1())
+    const seq2 = Array.from({ length: 10 }, () => rng2())
+
+    expect(seq1).toEqual(seq2)
+    seq1.forEach((val) => {
+      expect(val).toBeGreaterThanOrEqual(0)
+      expect(val).toBeLessThan(1)
+    })
+  })
+
+  it('generates different sequences for different seeds', () => {
+    const rng1 = createMulberry32(111111)
+    const rng2 = createMulberry32(222222)
+
+    expect(rng1()).not.toBe(rng2())
+  })
+
+  it('deterministically rolls legal die faces with rollDieWithSeed', () => {
+    const seed = 987654321
+    const rolls1 = Array.from({ length: 20 }, (_, turn) => rollDieWithSeed(seed, turn))
+    const rolls2 = Array.from({ length: 20 }, (_, turn) => rollDieWithSeed(seed, turn))
+
+    expect(rolls1).toEqual(rolls2)
+    rolls1.forEach((face) => {
+      expect([2, 3, 4, 5]).toContain(face)
+    })
+  })
+})
+
+describe('authoritative room and AI takeover', () => {
+  it('creates an instant demo room with 1 human seat and 3 AI seats', () => {
+    const room = createInstantDemoRoom('token-123', 'red')
+    expect(room.seq).toBe(1)
+    expect(room.seats.red.controllerType).toBe('HUMAN')
+    expect(room.seats.red.playerToken).toBe('token-123')
+    expect(room.seats.blue.controllerType).toBe('AI_BOT')
+    expect(room.seats.yellow.controllerType).toBe('AI_BOT')
+    expect(room.seats.green.controllerType).toBe('AI_BOT')
+  })
+
+  it('increments seq monotonically on valid ROLL_DICE intent', () => {
+    const room = createInstantDemoRoom('token-123', 'red')
+    const result = processIntent(room, 'token-123', {
+      type: 'ROLL_DICE',
+      clientActionId: 'action-1',
+      expectedSeq: 1,
+    })
+
+    expect(result.room.seq).toBe(2)
+    expect(result.room.state.currentRoll).not.toBeNull()
+    expect(result.events).toHaveLength(1)
+    expect(result.events[0].type).toBe('ACTION_COMMITTED')
+  })
+
+  it('rejects out-of-turn intents without mutating server seq', () => {
+    const room = createInstantDemoRoom('token-123', 'red')
+    // Attempting move with green player's token when it's red's turn
+    const result = processIntent(room, 'token-fake', {
+      type: 'ROLL_DICE',
+      clientActionId: 'action-bad',
+      expectedSeq: 1,
+    })
+
+    expect(result.rejectedReason).toBe('NOT_YOUR_TURN')
+    expect(result.room.seq).toBe(1)
+    expect(result.events[0].type).toBe('ACTION_REJECTED')
+  })
+
+  it('handles disconnect and initiates 15-second grace window', () => {
+    const room = createInstantDemoRoom('token-123', 'red')
+    const now = 1000000
+    const { room: disconnectedRoom, event } = handleDisconnect(room, 'red', now)
+
+    expect(disconnectedRoom.seats.red.status).toBe('GRACE_PERIOD')
+    expect(disconnectedRoom.seats.red.graceExpiresAt).toBe(now + 15000)
+    expect(disconnectedRoom.seats.red.playerToken).toBe('token-123') // Token preserved!
+    expect(event.type).toBe('SEAT_STATUS_CHANGED')
+  })
+
+  it('switches seat to AI_TAKEOVER when grace period expires', () => {
+    const room = createInstantDemoRoom('token-123', 'red')
+    const now = 1000000
+    const { room: disconnectedRoom } = handleDisconnect(room, 'red', now)
+
+    // Check before expiration
+    const beforeExpiry = checkGracePeriodExpirations(disconnectedRoom, now + 10000)
+    expect(beforeExpiry.events).toHaveLength(0)
+
+    // Check after 15 seconds
+    const afterExpiry = checkGracePeriodExpirations(disconnectedRoom, now + 15001)
+    expect(afterExpiry.room.seats.red.status).toBe('AI_TAKEOVER')
+    expect(afterExpiry.room.seats.red.controllerType).toBe('AI_FALLBACK')
+    expect(afterExpiry.room.seats.red.playerToken).toBe('token-123') // Still preserved for reclaim!
   })
 })

@@ -10,6 +10,7 @@ import Lore from './components/Lore'
 import MainMenu from './components/MainMenu'
 import MoveHistory from './components/MoveHistory'
 import OnlineGame from './components/OnlineGame'
+import PlayerCards from './components/PlayerCards'
 import Settings from './components/Settings'
 import Tutorial from './components/Tutorial'
 import { AuthProvider } from './contexts/AuthContext'
@@ -316,11 +317,10 @@ function LocalGame({ onBack }: { onBack: () => void }) {
             </div>
           </section>
 
-          <section className="w-full lg:w-80">
+          <section className="flex w-full flex-col gap-3 lg:w-80">
+            <PlayerCards />
             <DieRoll />
-            <div className="mt-4">
-              <MoveHistory />
-            </div>
+            <MoveHistory />
           </section>
         </div>
       </main>

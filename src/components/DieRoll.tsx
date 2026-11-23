@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHintMove } from '../engine/ai'
 import type { CandidateMove } from '../engine/moves'
-import type { PlayerColor } from '../engine/types'
 import { useGameStore } from '../store/gameStore'
 import { capitalizeColor } from '../utils/format'
 import { playDieRollSound, playDieResultSound, playPassTurnSound } from '../utils/sound'
 import DieFaceDisplay from './DieFaceDisplay'
 import {
   DIE_FACES,
-  PLAYER_ORDER,
   ROLL_LABELS_SANSKRIT,
   ROLL_LABELS_ENGLISH,
   ROLL_ANIMATION_MS,
@@ -26,12 +24,10 @@ export default function DieRoll() {
   const phase = useGameStore((state) => state.gameState.phase)
   const currentTurn = useGameStore((state) => state.gameState.currentTurn)
   const currentRoll = useGameStore((state) => state.gameState.currentRoll)
-  const players = useGameStore((state) => state.gameState.players)
   const humanPlayer = useGameStore((state) => state.humanPlayer)
   const sanskritNames = useGameStore((state) => state.sanskritNames)
   const timerMode = useGameStore((state) => state.timerMode)
   const moveTimeLeft = useGameStore((state) => state.moveTimeLeft)
-  const timeLeft = useGameStore((state) => state.timeLeft)
   const dieTheme = useGameStore((state) => state.dieTheme)
   const isRolling = useGameStore((state) => state.isRolling)
   const rollingFace = useGameStore((state) => state.rollingFace)
@@ -42,14 +38,8 @@ export default function DieRoll() {
 
   const [showForfeitMessage, setShowForfeitMessage] = useState(false)
   const [localHintMove, setLocalHintMove] = useState<CandidateMove | null>(null)
-  const [lastPointsChange, setLastPointsChange] = useState<Record<PlayerColor, number>>({
-    red: 0, blue: 0, yellow: 0, green: 0,
-  })
   const timeoutRef = useRef<number | null>(null)
   const cycleRef = useRef<number | null>(null)
-  const prevPointsRef = useRef<Record<PlayerColor, number>>({
-    red: 0, blue: 0, yellow: 0, green: 0,
-  })
 
   useEffect(() => {
     if (!showForfeitMessage) {
@@ -74,42 +64,6 @@ export default function DieRoll() {
       }
     }
   }, [])
-
-  useEffect(() => {
-    const changes: Record<PlayerColor, number> = { red: 0, blue: 0, yellow: 0, green: 0 }
-    let hasChange = false
-    for (const color of PLAYER_ORDER) {
-      const diff = players[color].points - prevPointsRef.current[color]
-      if (diff > 0) {
-        changes[color] = diff
-        hasChange = true
-      }
-    }
-    if (hasChange) {
-      const showTimer = window.setTimeout(() => {
-        setLastPointsChange(changes)
-      }, 0)
-      const timer = window.setTimeout(() => {
-        setLastPointsChange({ red: 0, blue: 0, yellow: 0, green: 0 })
-      }, 800)
-      prevPointsRef.current = {
-        red: players.red.points,
-        blue: players.blue.points,
-        yellow: players.yellow.points,
-        green: players.green.points,
-      }
-      return () => {
-        window.clearTimeout(showTimer)
-        window.clearTimeout(timer)
-      }
-    }
-    prevPointsRef.current = {
-      red: players.red.points,
-      blue: players.blue.points,
-      yellow: players.yellow.points,
-      green: players.green.points,
-    }
-  }, [players])
 
   const handleRollDie = useCallback((): void => {
     if (isRolling) {
@@ -256,102 +210,56 @@ export default function DieRoll() {
           type="button"
           onClick={handleRollDie}
           disabled={isRollDisabled}
-          className="mt-4 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3.5 text-base font-extrabold text-stone-950 shadow-lg hover:from-amber-400 hover:to-amber-500 active:scale-95 transition disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-amber-300 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-600 px-4 py-3.5 text-base font-black uppercase tracking-wider text-stone-950 shadow-[0_5px_0_#92400e] transition hover:from-amber-300 hover:to-amber-500 active:translate-y-1 active:shadow-[0_1px_0_#92400e] disabled:cursor-not-allowed disabled:border-stone-700 disabled:from-stone-800 disabled:to-stone-800 disabled:text-stone-500 disabled:shadow-none"
         >
-          🎲 Roll Pasa
+          <span className="text-xl">🎲</span>
+          <span>Roll Pasa</span>
         </button>
+      )}
+
+      {/* Raja Override Reminder Pill */}
+      {currentRoll !== null && isHumanTurn && (
+        <div className="mt-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-center text-[11px] font-medium text-amber-200">
+          👑 Raja (King) can move on <strong>any</strong> roll!
+        </div>
       )}
 
       {showHintButton ? (
         <button
           type="button"
           onClick={handleShowHint}
-          className="mt-2 w-full rounded-md border border-blue-400/50 bg-blue-900/30 px-4 py-2 font-medium text-blue-100 transition hover:bg-blue-800/40"
+          className="mt-2.5 w-full rounded-xl border border-sky-500/40 bg-sky-950/40 px-3 py-2 text-xs font-bold text-sky-200 shadow-sm transition hover:bg-sky-900/50 active:scale-95"
         >
-          {localHintMove ? 'Refresh Hint' : 'Show Hint'}
+          {localHintMove ? '💡 Refresh Tactical Hint' : '💡 Show Tactical Hint'}
         </button>
       ) : null}
 
       {showPassTurnButton ? (
-        <>
+        <div className="mt-2.5">
           <button
             type="button"
             onClick={() => { playPassTurnSound(); passTurn() }}
-            className="mt-2 w-full rounded-md border border-stone-400/50 bg-stone-700 px-4 py-2 font-medium text-stone-100 transition hover:bg-stone-600"
+            className="w-full rounded-xl border border-stone-600 bg-stone-800 px-3 py-2 text-xs font-bold text-stone-200 shadow-sm transition hover:bg-stone-700 active:scale-95"
           >
             Pass Turn
           </button>
-          <p className="mt-1 text-center text-xs text-stone-300">
-            Skip this turn — or move your Raja instead
+          <p className="mt-1 text-center text-[10px] text-stone-400">
+            Forfeit turn if no valid piece can move
           </p>
-        </>
-      ) : null}
-
-      <div className="mt-1 min-h-6 text-sm font-semibold text-rose-300">
-        {showForfeitMessage ? 'No legal moves — turn forfeited' : null}
-      </div>
-
-      {timerMode === 'per-move' && isHumanTurn ? (
-        <div className={`mt-2 text-center text-lg font-bold ${moveTimeLeft <= 10 ? 'text-red-400' : 'text-stone-200'}`}>
-          {formatTime(moveTimeLeft)}
         </div>
       ) : null}
 
-      {timerMode === 'total' ? (
-        <div className="mt-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-300">
-            Time
-          </h3>
-          <ul className="mt-2 space-y-1 text-sm">
-            {PLAYER_ORDER.map((color: PlayerColor) => {
-              const remaining = timeLeft[color]
-              const isLow = remaining <= 60
-              return (
-                <li key={color} className={`flex items-center justify-between rounded px-2 py-1 ${isLow ? 'bg-red-900/30 text-red-300' : 'bg-stone-700/70 text-stone-200'}`}>
-                  <span>{capitalizeColor(color)}</span>
-                  <span className="font-mono font-semibold">{formatTime(remaining)}</span>
-                </li>
-              )
-            })}
-          </ul>
+      {showForfeitMessage && (
+        <div className="mt-2 rounded-lg bg-rose-950/60 border border-rose-800/80 p-2 text-center text-xs font-bold text-rose-300 animate-pulse">
+          No legal moves — turn forfeited!
         </div>
-      ) : null}
+      )}
 
-      <div className="mt-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-300">
-          Points
-        </h3>
-        <ul className="mt-2 space-y-1.5 text-sm">
-          {PLAYER_ORDER.map((color: PlayerColor) => {
-            const player = players[color]
-            const isEliminated = player.isEliminated
-            const change = lastPointsChange[color]
-            return (
-              <li
-                key={color}
-                className={`relative flex items-center justify-between rounded px-2 py-1 ${
-                  isEliminated ? 'bg-stone-700/40 text-stone-400' : 'bg-stone-700/70'
-                }`}
-              >
-                <span>
-                  {capitalizeColor(color)}
-                  {isEliminated ? ' ✕' : ''}
-                </span>
-                <span className="flex items-center gap-1">
-                  {change > 0 && (
-                    <span className="score-float absolute right-2 -top-1 text-xs font-bold text-amber-400">
-                      +{change}
-                    </span>
-                  )}
-                  <span className={change > 0 ? 'score-pulse font-semibold' : 'font-semibold'}>
-                    {player.points}
-                  </span>
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
+      {timerMode === 'per-move' && isHumanTurn && (
+        <div className={`mt-3 text-center text-base font-extrabold ${moveTimeLeft <= 10 ? 'text-red-400 animate-pulse' : 'text-stone-300'}`}>
+          ⏱ {formatTime(moveTimeLeft)}
+        </div>
+      )}
     </aside>
   )
 }
